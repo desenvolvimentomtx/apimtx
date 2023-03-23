@@ -69,6 +69,14 @@ namespace MtxApi.Models
         [Column("simples_nacional")]
         public sbyte simples_nacional { get; set; }
 
+
+        [Column("crt")]
+        public int? crt { get; set; }
+
+        [Column("regime_trib")]
+        public int? regime_trib { get; set; }
+
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Usuario> usuario { get; set; }
 

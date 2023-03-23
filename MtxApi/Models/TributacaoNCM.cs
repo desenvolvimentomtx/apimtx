@@ -242,5 +242,13 @@ namespace MtxApi.Models
         public Nullable<sbyte> auditadoPorNCM { get; set; }
         [Column("Simp_Nacional")]
         public Nullable<sbyte> Simp_Nacional { get; set; }
+
+
+        [Column("CRT")]
+        public Nullable<int> CRT { get; set; }
+
+        [Column("Regime_Trib")]
+        public Nullable<int> Regime_Trib { get; set; }
+
     }
 }
