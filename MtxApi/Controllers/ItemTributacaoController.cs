@@ -27,6 +27,7 @@ namespace MtxApi.Controllers
 
 
         //nova acation com novos dados do cliente atualizado em 03/2023
+        //Teste Git
         [Route("api/ItemTributacao/{cnpj}")]
         public IHttpActionResult PostListaTributacaoMTX(string cnpj, List<ItemTributacaoJson> itens)
         {
