@@ -1,0 +1,1295 @@
+﻿
+@{
+    ViewBag.Title = "EmpresaTributacao";
+}
+
+<div class="jumbotron">
+    <h1 class="display-4">Tributação Empresa</h1>
+    <p class="lead">Relatório gráfico de Tributação de Produtos para a Empresa informada</p>
+    <hr class="my-4">
+    @if (ViewBag.ErroMensagem != null)
+    {
+
+
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>@ViewBag.ErroMensagem</strong> Verifique os dados informados e tente novamente
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+
+
+    }
+    else
+    {
+        <div class="container">
+            <form>
+                <div class="form-group row">
+                    <label for="razap" class="col-lg-2 col-form-label col-form-label-sm"><span class="prn-fonte">Razão Social</span></label>
+                    <div class="col-lg-8">
+                        <input type="text" class="form-control form-control-sm" id="razao" placeholder="col-form-label-sm" value="@ViewBag.RazaoSocial" readonly>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="fantasia" class="col-sm-2 col-form-label col-form-label-sm"><span class="prn-fonte">Fantasia</span></label>
+                    <div class="col-sm-8">
+                        <input type="text" class="form-control form-control-sm" id="fantasia" placeholder="col-form-label-sm" value="@ViewBag.Fantasia" readonly>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="cnpj" class="col-sm-2 col-form-label col-form-label-sm"><span class="prn-fonte">Cnpj</span></label>
+                    <div class="col-sm-8">
+                        <input type="text" class="form-control form-control-sm" id="cnpj" placeholder="col-form-label-sm" value="@ViewBag.Cnpj" readonly>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="cidade" class="col-sm-2 col-form-label col-form-label-sm"><span class="prn-fonte">Cidade</span></label>
+                    <div class="col-sm-4">
+                        <input type="text" class="form-control form-control-sm" id="cidade" placeholder="col-form-label-sm" value="@ViewBag.Cidade" readonly>
+                    </div>
+                    <label for="estado" class="col-sm-2 col-form-label col-form-label-sm"><span class="prn-fonte">Estado</span></label>
+                    <div class="col-sm-2">
+                        <input type="text" class="form-control form-control-sm" id="estado" placeholder="col-form-label-sm" value="@ViewBag.Estado" readonly>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="reg" class="col-sm-2 col-form-label col-form-label-sm"><span class="prn-fonte">Registros</span></label>
+                    <div class="col-sm-2">
+                        <input type="text" class="form-control form-control-sm" id="reg" placeholder="col-form-label-sm" value="@ViewBag.TotalIcmsVarejoCF" readonly>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+
+    }
+
+</div>
+
+@if (ViewBag.ErroMensagem == null)
+{
+<main class="container">
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Icms de Saída
+                </div>
+                <div class="card-body">
+                    <div class="container pr-container  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de ICMS venda no varejo para Consumidor Final
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsVarConsFinal" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de ICMS ST venda no varejo para Consumidor Final
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsSTVarConsFinal" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de ICMS venda varejo para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsVendaVarCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de ICMS ST venda varejo para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsSTVendaVarCont" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+
+
+                    </div> <!--container maior-->
+
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS Venda Atacado para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsVendaAtaCont" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS ST Venda Atacado para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsSTVendaAtaCont" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS Venda no atacado para Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliqIcmsVendaAtaSN" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS ST Venda no atacado para Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="aliqIcmsSTVendaAtaSN" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Red. Base de Calc. Icms Saída
+                </div>
+                <div class="card-body">
+
+                    <div class="container pr-container  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Redução da Base Calc ICMS venda Consumidor Final
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcVenCF" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Redução da Base Calc ICMS ST venda Consumidor Final
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcSTVenCF" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                    </div> <!--container maior-->
+                    <div class="container pr-container-2  pr-card-cad row">
+
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. base de calculo ICMS venda varejo p/ Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcVenCont" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. base de calculo ICMS ST venda varejo p/ Conttribuinte.
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcSTVenCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                    </div> <!--container maior-->
+
+                    <div class="container pr-container-2  pr-card-cad row">
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. Base Calc ICMS Venda Atacado p/ Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcVenAtaCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. Base Calc ICMS ST Venda Atacado p/ Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcSTVenAtaCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. Base de Calc. ICMS Venda atacado p/ Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcVenAtaSN" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red. Base de Calc. ICMS ST Venda no ata. p/ Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcSTVenAtaSN" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Icms de Entrada
+                </div>
+                <div class="card-body">
+
+                    <div class="container pr-container  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS Compra de Industria
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsComInd" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliq ICMS ST Compra de Industria
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsSTComInd" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS Compra de Atacado
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsCompAta" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS ST Compra de Atacado
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsSTCompAta" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS Compra de Simples nacional
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsCompSN" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS ST Compra de Simples nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                
+                                                    <div id="aliIcmsSTCompSN" style="width: 450px; height: 300px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+
+                        </div>
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+                        <div class="col-lg-4 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS NFE INDUSTRIA
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsNFECompInd" style="width: 300px; height: 250px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS NFE SIMPLES NACIONAL
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliIcmsNFECompSN" style="width: 300px; height: 250px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota ICMS NFE ATACADO
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+
+                                                    <div id="aliIcmsNfeComAta" style="width: 300px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+    </div> <!--Fim row-->
+
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Red. Base de Calc. Icms de  Entrada
+                </div>
+                <div class="card-body">
+
+                    <div class="container pr-container  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Redução base de calc. ICMS  Compra de Industria
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcCompInd" style="width: 450px; height: 250px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Redução base de calc. ICMS ST Compra de Industria
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcSTCompInd" style="width: 450px; height: 250px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red Base Calc ICMS Compra de Atacado
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="redBCalcCompAta" style="width: 450px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red Base Calc ICMS ST Compra de Atacado
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcSTCompAta" style="width: 450px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Red Base Calc ICMS Compra de Simples Nacional
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcCompSN" style="width: 450px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    Red Base Calc ICMS ST Compra de Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="redBCalcSTCompSN" style="width: 450px; height: 250px;"></div>
+                                             
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+
+
+
+                </div>
+            </div>
+        </div>
+    </div> <!--Fim da row-->
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Pis/Cofins
+                </div>
+                <div class="card-body">
+                    <!--Aliquota entrada e saida pis-->
+                    <div class="container pr-container pr-card-cad row">
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Entrada PIS
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliEntPis" style="width: 450px; height: 300px;"></div>
+                                             
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Saida PIS
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="aliSaiPis" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+                    </div> <!--container maior-->
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Entrada COFINS
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="aliEntCofins" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+
+                        </div>
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Aliquota de Saida COFINS
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="aliSaidaCofins" style="width: 450px; height: 300px;"></div>
+                                             
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+
+                        </div>
+
+
+
+
+
+
+                    </div> <!--container maior-->
+
+
+                </div>
+            </div>
+        </div>
+    </div> <!--Fim da ROW-->
+
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    CST Saída e de Pis Cofins
+                </div>
+                <div class="card-body">
+
+
+                    <div class="container pr-container  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Pis/Cofins de Entrada
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="cstEntPisCofins" style="width: 450px; height: 300px;"></div>
+                                             
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Pis/Cofins de Saída
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="cstSaiPisCofins" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Venda Varejo para Consumidor Final
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="cstVendaVarejoCF" style="width: 450px; height: 300px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Venda Varejo para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="cstVendaVarejoCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Venda Atacado para Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="cstVendaAtaSN" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Venda atacado para Contribuinte
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="cstVendaAtaCont" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+                </div>
+            </div>
+        </div>
+    </div> <!--Fim da row-->
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    CST Entrada
+                </div>
+                <div class="card-body">
+                    <div class="container pr-container  pr-card-cad row">
+                        <div class="col-lg-4 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Compra de industria
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="cstCompInd" style="width: 350px; height: 250px;"></div>
+                                                
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Compra de Atacado
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="cstCompAta" style="width: 350px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST Compra de Simples nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+
+                                                    <div id="cstCompSN" style="width: 350px; height: 250px;"></div>
+                                              
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+
+                    <div class="container pr-container-2  pr-card-cad row">
+                        <div class="col-lg-4 col-sm-12 pr-1">
+
+                            <div class="card">
+                                <div class="card-header">
+                                    CST NFE Industria
+
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="cstNfeInd" style="width: 350px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CST NFE Atacado
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                               
+                                                    <div id="cstNfeAta" style="width: 350px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+                        <div class="col-lg-4 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    CSosnt NFE For Simples Nacional
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+
+                                                    <div id="cstNfeSN" style="width: 350px; height: 250px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div> <!--Fim da Row-->
+    <div class="row">
+        <div class="col-lg">
+            <div class="card">
+                <div class="card-header">
+                    Produtos
+                </div>
+                <div class="card-body">
+
+                    <!--Produtos mesma descrição-->
+                    <div class="container pr-container pr-card-cad row">
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Produtos com a Mesma Descrição
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="prodDesc" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Produtos por NCM
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="prodNcm" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+                        <div class="col-lg-6 col-sm-12 pr-1">
+                            <div class="card">
+                                <div class="card-header">
+                                    Produtos pelo CEST
+                                </div> <!--CAbeçalho-->
+                                <div class="card-body">
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-12">
+                                              
+                                                    <div id="prodCest" style="width: 450px; height: 300px;"></div>
+                                               
+                                            </div><!--12 colunas a linha-->
+                                        </div><!--linha do container do body-->
+                                    </div> <!--container do body-->
+                                </div><!--body-->
+                            </div><!--card-->
+                        </div>
+
+
+
+                    </div> <!--container maior-->
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+}
+

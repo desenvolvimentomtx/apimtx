@@ -1,0 +1,1500 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/png" href="~/Content/Img/preciso.ico" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css">
+    <link href="~/Scripts/Graficos/all-min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Monda&display=swap" rel="stylesheet">
+
+    <title>@ViewBag.Title</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+    <script src="~/Scripts/Graficos/loader.js"></script><!--Necessário para os gráficos-->
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark prn-thead fixed-top">
+
+        <div class="container-fluid">
+            <a class="navbar-brand" href="@Url.Action("Index", "HomeApi")">
+                <img src="~/Content/Img/logo_nova_empresas_0707.png" width="150" height="25" class="d-inline-block align-top" alt="">
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#menuCollapse" aria-controls="menuCollapse" aria-expanded="false" aria-label="Alterna navegação">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="menuCollapse">
+                <ul class="navbar-nav">
+                    <li>@Html.ActionLink("Início", "Index", "Home", new { @class = "nav-item nav-link active" })</li>
+                    <li><a href="http://precisotax.com.br/#sobre" target="_blank" class="nav-item nav-link">Sobre</a></li>
+                    <li><a href="http://precisotax.com.br/#contato" target="_blank" class="nav-item nav-link">Contato</a></li>
+
+                </ul>
+
+            </div>
+
+        </div>
+    </nav>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p style="font-size:0.7em;">&copy; @DateTime.Now.Year - Desenvolvido com tecnologia ASP.NET. Todos os direitos reservados</p>
+        </footer>
+    </div>
+
+
+    <script src="~/Scripts/Graficos/jquery-1.12.4.min.js"></script>
+    <script src="~/Scripts/Graficos/bootstrap.bundle.min.js"></script>
+
+
+    <!--Graficos-->
+    <script>
+
+                    /*Icms de saída*/
+                     $(document).ready(function () {
+
+                         google.charts.load("current", { packages: ["corechart"] });
+
+                         google.charts.setOnLoadCallback(aliIcmsVarConsFinal);   /*Ok*/
+                         google.charts.setOnLoadCallback(aliIcmsSTVarConsFinal); /*Ok*/
+
+                         google.charts.setOnLoadCallback(aliIcmsVendaVarCont);
+                         google.charts.setOnLoadCallback(aliIcmsSTVendaVarCont);
+
+                         google.charts.setOnLoadCallback(aliIcmsVendaAtaCont);
+                         google.charts.setOnLoadCallback(aliIcmsSTVendaAtaCont);
+
+                         google.charts.setOnLoadCallback(aliqIcmsVendaAtaSN);
+                         google.charts.setOnLoadCallback(aliqIcmsSTVendaAtaSN);
+
+
+
+                         function aliIcmsVarConsFinal() {
+                             var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSVarejoCFMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSVarejoCFMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSVarejoCFIgual)],
+                                        ['Nulas MTX', @Html.Raw(ViewBag.AlqICMSVarejoCFNullaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSVarejoCFNullaExterno)]
+
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs MTX',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsVarConsFinal'));
+                            chart.draw(data, options);
+                         }//fim venda varejo cons final
+
+                         function aliIcmsSTVarConsFinal() {
+                              var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSSTVarejoCFMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSSTVarejoCFMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSSTVarejoCFIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqICMSSTVarejoCFNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSSTVarejoCFNulaExterno)]
+                              ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs MTX',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTVarConsFinal'));
+
+                             chart.draw(data, options);
+                         }// fim aliIcmsVarConsFinal
+
+                         function aliIcmsVendaVarCont() {
+                             var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSVendaVContMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSVendaVContMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSVendaVContIguais)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqICMSVendaVContNulasInternos)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSVendaVContNulasExternos)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsVendaVarCont'));
+
+                             chart.draw(data, options);
+                         }// fim aliicmsvendavarcont
+
+                         function aliIcmsSTVendaVarCont() {
+                             var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSSTVendaVContMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSSTVendaVContMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSSTVendaVContIguais)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqICMSSTVendaVContNulasInternos)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSSTVendaVContNulasExternos)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTVendaVarCont'));
+
+                             chart.draw(data, options);
+                         }//fim venda varj cont st
+
+                         function aliIcmsVendaAtaCont() {
+                             var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSVataMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSVataMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSVataIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqICMSVataNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSVataNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                            color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsVendaAtaCont'));
+
+                             chart.draw(data, options);
+                         }//fim icms venda ata cont
+
+                         function aliIcmsSTVendaAtaCont() {
+                             var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqICMSSTVataMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqICMSSTVataMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqICMSSTVataIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqICMSSTVataNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqICMSSTVataNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTVendaAtaCont'));
+
+                             chart.draw(data, options);
+                         }//Fim icms st venda ata cont
+
+                         function aliqIcmsVendaAtaSN() {
+                              var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliqIcmsVendaAtaSN'));
+
+                             chart.draw(data, options);
+                         } //Fim venda atacado para simples nacional
+
+                          /*Aliq ICMS ST Venda no atacado para Simples Nacional*/
+                         function aliqIcmsSTVendaAtaSN() {
+                              var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSSTVendaAtaSimpNacionalMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AliqICMSSTVendaAtaSimpNacionalMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSSTVendaAtaSimpNacionalIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSSTVendaAtaSimpNacionalNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSVendaAtaSimpNacionalNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente vs Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                             var chart = new google.visualization.PieChart(document.getElementById('aliqIcmsSTVendaAtaSN'));
+
+                             chart.draw(data, options);
+                         }//fim funcao aliqIcmsSTVendaAtaSN
+
+
+
+                     }); //fim do doc read
+
+        /*Redução base calc saida*/
+
+                                $(document).ready(function () {
+
+                                    google.charts.load("current", { packages: ["corechart"] });
+                                    google.charts.setOnLoadCallback(redBCalcVenCF); /*ok*/
+                                    google.charts.setOnLoadCallback(redBCalcSTVenCF);/*Fazendo*/
+                                    google.charts.setOnLoadCallback(redBCalcVenCont);
+                                    google.charts.setOnLoadCallback(redBCalcSTVenCont);
+                                    google.charts.setOnLoadCallback(redBCalcVenAtaCont);
+                                    google.charts.setOnLoadCallback(redBCalcSTVenAtaCont);
+                                    google.charts.setOnLoadCallback(redBCalcVenAtaSN);
+                                    google.charts.setOnLoadCallback(redBCalcSTVenAtaSN);
+
+                                    function redBCalcVenCF() {
+                                        var data = google.visualization.arrayToDataTable([
+                                            ['Aliquota', 'Valores'],
+                                            ['Maiores', @Html.Raw(ViewBag.AlqRBCIcmsCFMaior)],
+                                            ['Menores', @Html.Raw(ViewBag.AlqRBCIcmsCFMenor)],
+                                            ['Iguais', @Html.Raw(ViewBag.AlqRBCIcmsCFIgual)],
+                                            ['Nulas Matriz', @Html.Raw(ViewBag.AlqRBCIcmsCFNullaInterno)],
+                                            ['Nulas Cliente', @Html.Raw(ViewBag.AlqRBCIcmsCFNullaExterno)]
+                                        ]);
+
+                                        var options = {
+                                            title: 'Relação Cliente x Matriz',
+                                            sliceVisibilityThreshold: .00001,
+                                            pieHole: 0.3,
+                                            pieSliceTextStyle: {
+                                            color: 'black',
+                                                fontSize: '10'
+                                            },
+                                            legend: 'true'
+                                        };
+
+                                        var chart = new google.visualization.PieChart(document.getElementById('redBCalcVenCF'));
+
+                                        chart.draw(data, options);
+                                    }
+
+                                    function redBCalcSTVenCF() {
+                                         var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqRBCIcmsSTCFMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqRBCIcmsSTCFMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqRBCIcmsSTCFIguais)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqRBCIcmsSTCFNullaInternos)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqRBCIcmsSTCFNullaExternos)]
+                                        ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                            color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                        var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTVenCF'));
+
+                                        chart.draw(data, options);
+                                    }
+
+                                    function redBCalcVenCont()
+                                    {
+                                         var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqRDBCICMSVendaVarContMarior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqRDBCICMSVendaVarContMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqRDBCICMSVendaVarContIguais)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqRDBCICMSVendaVarContNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqRDBCICMSVendaVarContNulaExterno)]
+                                        ]);
+
+                                             var options = {
+                                                 title: 'Relação Cliente x Matriz',
+                                                 sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                        var chart = new google.visualization.PieChart(document.getElementById('redBCalcVenCont'));
+                                            chart.draw(data, options);
+                                    }
+
+                                    function redBCalcSTVenCont()
+                                    {
+
+                                        var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.AlqRDBCICMSSTVendaVarContMarior)],
+                                        ['Menores', @Html.Raw(ViewBag.AlqRDBCICMSSTVendaVarContMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.AlqRDBCICMSSTVendaVarContIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.AlqRDBCICMSSTVendaVarContNulaInterna)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.AlqRDBCICMSSTVendaVarContNulaExterna)]
+                                    ]);
+
+                                        var options = {
+                                            title: 'Relação Cliente x Matriz',
+                                            sliceVisibilityThreshold: .00001,
+                                            pieHole: 0.3,
+                                            pieSliceTextStyle: {
+                                            color: 'black',
+                                                fontSize: '10'
+                                            },
+                                            legend: 'true'
+                                        };
+
+                                        var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTVenCont'));
+                                        chart.draw(data, options);
+
+                                    }
+
+                                    function redBCalcVenAtaCont() {
+                                         var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSVataMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSVataMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSVataIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSVataNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSVataNulaExterno)]
+                                    ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcVenAtaCont'));
+                                            chart.draw(data, options);
+                                    }
+
+                                    function redBCalcSTVenAtaCont() {
+                                        var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSSTVataMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSSTVataMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSSTVataIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSSTVataNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSSTVataNulaExterno)]
+                                    ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTVenAtaCont'));
+                                            chart.draw(data, options);
+                                    }
+
+                                    function redBCalcVenAtaSN()
+                                    {
+                                        var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSVATASimpNacionalMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSVATASimpNacionalMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSVATASimpNacionalIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSVATASimpNacionalNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSVATASimpNacionalNulaExterno)]
+                                    ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcVenAtaSN'));
+                                            chart.draw(data, options);
+
+                                    }
+
+                                    function redBCalcSTVenAtaSN() {
+                                        var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSSTVATASimpNacionalMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSSTVATASimpNacionalMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSSTVATASimpNacionalIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSSTVATASimpNacionalNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSSTVATASimpNacionalNulaExterno)]
+                                    ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                        var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTVenAtaSN'));
+                                            chart.draw(data, options);
+                                    }
+
+                                });
+
+                                  /*Analise Grafico icms de entrada*/
+                                   /*Aliquota ICMS Compra de Industria*/
+                                    $(document).ready(function () {
+
+                                        google.charts.load("current", { packages: ["corechart"] });
+                                        google.charts.setOnLoadCallback(aliIcmsComInd); //edição ok->Compra de industria
+                                        google.charts.setOnLoadCallback(aliIcmsSTComInd); //edição ok->Compra ST  de industria
+                                        google.charts.setOnLoadCallback(aliIcmsCompAta);
+                                        google.charts.setOnLoadCallback(aliIcmsSTCompAta);
+                                        google.charts.setOnLoadCallback(aliIcmsCompSN);
+                                        google.charts.setOnLoadCallback(aliIcmsSTCompSN);
+                                        google.charts.setOnLoadCallback(aliIcmsNFECompInd);
+                                        google.charts.setOnLoadCallback(aliIcmsNFECompSN)
+                                        google.charts.setOnLoadCallback(aliIcmsNfeComAta);
+
+
+                                            function aliIcmsComInd() {
+                                                var data = google.visualization.arrayToDataTable([
+                                                    ['Aliquota', 'Valores'],
+                                                    ['Maiores', @Html.Raw(ViewBag.AliqICMSCompINDMaior)],
+                                                    ['Menores', @Html.Raw(ViewBag.AliqICMSCompINDMenor)],
+                                                    ['Iguais', @Html.Raw(ViewBag.AliqICMSCompINDIgual)],
+                                                    ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSCompINDNulaExterno)],
+                                                    ['Nulas MTX', @Html.Raw(ViewBag.AliqICMSCompIndNulaInterno)]
+                                                ]);
+
+                                                var options = {
+                                                    title: 'Relação Cliente x Matriz',
+                                                    sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                    color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+                                                };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('aliIcmsComInd'));
+
+
+                                                chart.draw(data, options);
+                                        }
+
+                                        function aliIcmsSTComInd() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                    ['Aliquota', 'Valores'],
+                                                    ['Maiores', @Html.Raw(ViewBag.AliqICMSSTCompINDMaior)],
+                                                    ['Menores', @Html.Raw(ViewBag.AliqICMSSTCompINDMenor)],
+                                                    ['Iguais', @Html.Raw(ViewBag.AliqICMSSTCompINDIgual)],
+                                                    ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSSTCompINDNulaExterno)],
+                                                    ['Nulas MTX', @Html.Raw(ViewBag.AliqICMSSTCompIndNulaInterno)]
+                                                ]);
+
+                                                var options = {
+                                                    title: 'Relação Cliente x Matriz',
+                                                    sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                    color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+                                                };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTComInd'));
+
+                                            chart.draw(data, options);
+                                        }
+                                        function aliIcmsCompAta() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                    ['Aliquota', 'Valores'],
+                                                    ['Maiores', @Html.Raw(ViewBag.AliqICMSCompATAMaior)],
+                                                    ['Menores', @Html.Raw(ViewBag.AliqICMSCompATAMenor)],
+                                                    ['Iguais', @Html.Raw(ViewBag.AliqICMSCompATAIgual)],
+                                                    ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSCompATANulaInterno)],
+                                                    ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSCompATANulaExterno)]
+                                                ]);
+
+                                                var options = {
+                                                    title: 'Relação Cliente x Matriz',
+                                                    sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                    color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+                                                };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsCompAta'));
+                                                chart.draw(data, options);
+                                        }
+                                        function aliIcmsSTCompAta() {
+                                             var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSSTCompATAMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSSTCompATAMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSSTCompATAIgual)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSSTCompATANulaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSSTCompATANulaExterno)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTCompAta'));
+                                                    chart.draw(data, options);
+                                        }
+
+                                        function aliIcmsCompSN()
+                                        {
+                                            var data = google.visualization.arrayToDataTable(
+                                                [
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSCompSNMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSCompSNMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSCompSNIgual)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSCompSNNulaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSCompSNNulaExterno)]
+                                                ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsCompSN'));
+                                                    chart.draw(data, options);
+
+                                        }
+
+                                        function aliIcmsSTCompSN()
+                                        {
+                                              var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSSTCompSNMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSSTCompSNMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSSTCompSNIgual)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSSTCompSNNulaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSSTCompSNNulaExterno)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsSTCompSN'));
+                                                    chart.draw(data, options);
+                                        }
+
+                                        function aliIcmsNFECompInd()
+                                        {
+                                            var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSNFEIndMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSNFEIndMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSNFEIndIguais)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSNFEIndNulaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSNFEIndNulaExterno)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsNFECompInd'));
+                                                    chart.draw(data, options);
+
+                                        }
+
+                                        function aliIcmsNFECompSN() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSNFESNMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSNFESNMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSNFESNIguais)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSNFESNNullaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSNFESNNullaExterno)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsNFECompSN'));
+                                                    chart.draw(data, options);
+                                        }
+
+                                        function aliIcmsNfeComAta() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AliqICMSNFEAtaMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AliqICMSNFEAtaMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AliqICMSNFEAtaIgual)],
+                                                        ['Nulas Matriz', @Html.Raw(ViewBag.AliqICMSNFEAtaNulaInterno)],
+                                                        ['Nulas Cliente', @Html.Raw(ViewBag.AliqICMSNFEAtaNulaExterno)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('aliIcmsNfeComAta'));
+                                                    chart.draw(data, options);
+                                         }
+
+                                    });
+
+        /*Redução base de calc icms de entrada*/
+        /*Red bae calc ICMS Compra de Industria*/
+                        $(document).ready(function () {
+
+                            google.charts.load("current", { packages: ["corechart"] });
+                            google.charts.setOnLoadCallback(redBCalcCompInd);
+                            google.charts.setOnLoadCallback(redBCalcSTCompInd);
+                            google.charts.setOnLoadCallback(redBCalcCompAta);
+                            google.charts.setOnLoadCallback(redBCalcSTCompAta);
+                            google.charts.setOnLoadCallback(redBCalcCompSN);
+                            google.charts.setOnLoadCallback(redBCalcSTCompSN);
+
+
+
+                                function redBCalcCompInd() {
+                                    var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSCompINDMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSCompINDMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSCompINDIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSCompINDNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSCompINDNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                            color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                    var chart = new google.visualization.PieChart(document.getElementById('redBCalcCompInd'));
+                                    chart.draw(data, options);
+                            }
+
+                            function redBCalcSTCompInd() {
+                                var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompINDMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompINDMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompINDIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompINDNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompINDNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTCompInd'));
+                                    chart.draw(data, options);
+                            }
+
+                            function redBCalcCompAta() {
+                                var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSCompATAMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSCompATAMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSCompATAIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSCompATANulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSCompATANulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcCompAta'));
+                                    chart.draw(data, options);
+                            }
+
+                            function redBCalcSTCompAta()
+                            {
+                                var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompATAMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompATAMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompATAIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompATANulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompATANulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTCompAta'));
+                                    chart.draw(data, options);
+                            }
+
+                            function redBCalcCompSN() {
+                                 var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSCompSNMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSCompSNMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSCompSNIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSCompSNNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSCompSNNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcCompSN'));
+                                    chart.draw(data, options);
+                            }
+
+                            function redBCalcSTCompSN() {
+                                var data = google.visualization.arrayToDataTable([
+                                        ['Aliquota', 'Valores'],
+                                        ['Maiores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompSNMaior)],
+                                        ['Menores', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompSNMenor)],
+                                        ['Iguais', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompSNIgual)],
+                                        ['Nulas Matriz', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompSNNulaInterno)],
+                                        ['Nulas Cliente', @Html.Raw(ViewBag.RedBaseCalcICMSSTCompSNNulaExterno)]
+                                    ]);
+
+                                    var options = {
+                                        title: 'Relação Cliente x Matriz',
+                                        sliceVisibilityThreshold: .00001,
+                                        pieHole: 0.3,
+                                        pieSliceTextStyle: {
+                                        color: 'black',
+                                            fontSize: '10'
+                                        },
+                                        legend: 'true'
+                                    };
+
+                                var chart = new google.visualization.PieChart(document.getElementById('redBCalcSTCompSN'));
+                                    chart.draw(data, options);
+                            }
+
+                        });
+
+        /*Analise pis cofins*/
+        /*Entrada e saida pis*/
+                                     $(document).ready(function () {
+
+                                         google.charts.load("current", { packages: ["corechart"] });
+                                         google.charts.setOnLoadCallback(aliEntPis);
+                                         google.charts.setOnLoadCallback(aliSaiPis);
+                                         google.charts.setOnLoadCallback(aliEntCofins);
+                                         google.charts.setOnLoadCallback(aliSaidaCofins);
+
+                                          function aliEntPis() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                 ['Aliquota', 'Valores'],
+                                                 ['Maiores', @Html.Raw(ViewBag.AlqEPMaior)],
+                                                 ['Menores', @Html.Raw(ViewBag.AlqEPMenor)],
+                                                 ['Iguais', @Html.Raw(ViewBag.AlqEPIgual)],
+                                                 ['Nulas Internos', @Html.Raw(ViewBag.AlqEPNulaInterno)],
+                                                 ['Nulas Externas', @Html.Raw(ViewBag.AlqEPNulaCliente)]
+                                                 ]);
+
+                                                var options = {
+                                                    title: 'Relação Cliente x Matriz',
+                                                    sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                    color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+
+                                                    };
+
+                                                    var chart = new google.visualization.PieChart(document.getElementById('aliEntPis'));
+                                                    chart.draw(data, options);
+                                         }
+
+                                         function aliSaiPis() {
+                                                  var data = google.visualization.arrayToDataTable([
+                                                        ['Aliquota', 'Valores'],
+                                                        ['Maiores', @Html.Raw(ViewBag.AlqSPMaior)],
+                                                        ['Menores', @Html.Raw(ViewBag.AlqSPMenor)],
+                                                        ['Iguais', @Html.Raw(ViewBag.AlqSPIguais)],
+                                                        ['Nulas Internos', @Html.Raw(ViewBag.AlqSPNulaInterno)],
+                                                        ['Nulas Externas', @Html.Raw(ViewBag.AlqSPNulaCliente)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                                     var chart = new google.visualization.PieChart(document.getElementById('aliSaiPis'));
+                                                    chart.draw(data, options);
+                                         }//fim ali saida pis
+
+                                     /*Entrada e saida cofins*/
+                                         function aliEntCofins() {
+                                             var data = google.visualization.arrayToDataTable([
+                                                    ['Aliquota', 'Valores'],
+                                                    ['Maiores', @Html.Raw(ViewBag.AlqEntradaCofinsMaior)],
+                                                    ['Menores', @Html.Raw(ViewBag.AlqEntradaCofinsMenor)],
+                                                    ['Iguais', @Html.Raw(ViewBag.AlqEntradaCofinsIguais)],
+                                                    ['Nulas Internos', @Html.Raw(ViewBag.AliqEntradaCofinsNullasInternas)],
+                                                    ['Nulas Externas', @Html.Raw(ViewBag.AliqEntradaCofinsNullasExternas)]
+                                                   ]);
+
+                                             var options = {
+                                                 title: 'Relação Cliente x Matriz',
+                                                 sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                    color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+                                             };
+
+                                             var chart = new google.visualization.PieChart(document.getElementById('aliEntCofins'));
+                                                chart.draw(data, options);
+                                         }//fim ali entrada cofins
+
+                                             function aliSaidaCofins() {
+                                                 var data = google.visualization.arrayToDataTable([
+                                                     ['Aliquota', 'Valores'],
+                                                     ['Maiores', @Html.Raw(ViewBag.AlqSaidaCofinsMaior)],
+                                                     ['Menores', @Html.Raw(ViewBag.AlqSaidaCofinsMenor)],
+                                                     ['Iguais', @Html.Raw(ViewBag.AlqSaidaCofinsIguais)],
+                                                     ['Nulas Matriz', @Html.Raw(ViewBag.AlqSCNullaInterna)],
+                                                     ['Nulas Cliente', @Html.Raw(ViewBag.AlqSCNullaCliente)]
+                                                 ]);
+
+                                                 var options = {
+                                                     title: 'Relação Cliente x Matriz',
+                                                     sliceVisibilityThreshold: .00001,
+                                                     pieHole: 0.3,
+                                                     pieSliceTextStyle: {
+                                                         color: 'black',
+                                                         fontSize: '10'
+                                                     },
+                                                     legend: 'true'
+                                                 };
+
+                                                 var chart = new google.visualization.PieChart(document.getElementById('aliSaidaCofins'));
+                                                 chart.draw(data, options);
+
+                                             }//fim saida cofins
+
+
+                                     });
+
+
+        /*Analise de CST*/
+        /*Redução base calc icms st venda atacado simples nacional */
+                                    $(document).ready(function () {
+
+                                        google.charts.load("current", { packages: ["corechart"] });
+                                        google.charts.setOnLoadCallback(cstEntPisCofins);
+                                        google.charts.setOnLoadCallback(cstSaiPisCofins);
+                                        google.charts.setOnLoadCallback(cstVendaVarejoCF);
+                                        google.charts.setOnLoadCallback(cstVendaVarejoCont);
+                                        google.charts.setOnLoadCallback(cstVendaAtaCont);
+                                        google.charts.setOnLoadCallback(cstVendaAtaSN);
+
+
+                                        function cstEntPisCofins() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstEntradaPisCofinsIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstEntradaPisCofinsDife)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstEntradaPisCofinsNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstEntradaPisCofinsNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('cstEntPisCofins'));
+                                            chart.draw(data, options);
+                                        }
+
+                                     function cstSaiPisCofins() {
+                                                    var data = google.visualization.arrayToDataTable([
+                                                        ['CST', 'Valores'],
+                                                        ['Iguais', @Html.Raw(ViewBag.CstSaidaPisCofinsIgual)],
+                                                        ['Diferentes', @Html.Raw(ViewBag.CstSaidaPisCofinsDife)],
+                                                        ['Nulos Cliente', @Html.Raw(ViewBag.CstSaidaPisCofinsNulaCliente)],
+                                                        ['Nulos MTX', @Html.Raw(ViewBag.CstSaidaPisCofinsNulaMtx)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                                 var chart = new google.visualization.PieChart(document.getElementById('cstSaiPisCofins'));
+                                                    chart.draw(data, options);
+                                     }
+
+                                        function cstVendaVarejoCF()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                        ['CST', 'Valores'],
+                                                        ['Iguais', @Html.Raw(ViewBag.CstVendaVarejoCFIgual)],
+                                                        ['Diferentes', @Html.Raw(ViewBag.CstVendaVarejoCFDif)],
+                                                        ['Nulos Cliente', @Html.Raw(ViewBag.CstVendaVarejoCFNulaCliente)],
+                                                        ['Nulos MTX', @Html.Raw(ViewBag.CstVendaVarejoCFNulaMtx)]
+                                                    ]);
+
+                                                    var options = {
+                                                        title: 'Relação Cliente x Matriz',
+                                                        sliceVisibilityThreshold: .00001,
+                                                        pieHole: 0.3,
+                                                        pieSliceTextStyle: {
+                                                        color: 'black',
+                                                            fontSize: '10'
+                                                        },
+                                                        legend: 'true'
+                                                    };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('cstVendaVarejoCF'));
+                                            chart.draw(data, options);
+
+
+                                          }
+                                        function cstVendaVarejoCont() {
+                                            var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstVendaVarejoContIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstVendaVarejoContDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstVendaVarejoContNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstVendaVarejoContNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('cstVendaVarejoCont'));
+                                            chart.draw(data, options);
+                                        }
+
+
+                                        function cstVendaAtaCont()
+                                        {
+                                            var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstVendaAtaContIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstVendaAtaContDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstVendaAtaContNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstVendaAtaContNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('cstVendaAtaCont'));
+                                            chart.draw(data, options);
+
+
+                                        }
+                                        function cstVendaAtaSN()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstVendaAtaSNIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstVendaAtaSNDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstVendaAtaSNNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstVendaAtaSNNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                            var chart = new google.visualization.PieChart(document.getElementById('cstVendaAtaSN'));
+                                            chart.draw(data, options);
+
+
+                                        }
+
+                                    });
+
+        /*Analise cSt de Entradas*/
+         $(document).ready(function ()
+                                        {
+                                            google.charts.load("current", { packages: ["corechart"] });
+
+                                            google.charts.setOnLoadCallback(cstCompInd);
+                                            google.charts.setOnLoadCallback(cstCompAta);
+                                            google.charts.setOnLoadCallback(cstCompSN);
+
+                                            google.charts.setOnLoadCallback(cstNfeInd);
+                                            google.charts.setOnLoadCallback(cstNfeAta);
+                                            google.charts.setOnLoadCallback(cstNfeSN);
+
+
+
+                                            /*CST Compra de industria */
+                                            function cstCompInd()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstCompraIndustriaIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstCompraIndustriaDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstCompraIndustriaNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstCompraIndustriaNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstCompInd'));
+                                            chart.draw(data, options);
+
+
+                                            }
+
+                                        /*CST Compra de Simples nacional*/
+                                            function cstCompSN()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstCompraSNIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstCompraSNDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstCompraSNNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstCompraSNNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstCompSN'));
+                                            chart.draw(data, options);
+
+
+                                            }
+
+                                             /*CST Compra de Atacado*/
+                                            function cstCompAta()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstCompraAtacadoIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstCompraAtacadoDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstCompraAtacadoNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstCompraAtacadoNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstCompAta'));
+                                            chart.draw(data, options);
+
+
+                                            }
+
+
+
+
+                                            /*CST NFE Industria */
+                                            function cstNfeInd()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstNFEIndIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstNFEIndDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstNFEIndNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstNFEIndNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstNfeInd'));
+                                            chart.draw(data, options);
+
+
+                                            }
+
+                                              /*CST NFE Atacado */
+                                            function cstNfeAta()
+                                        {
+                                             var data = google.visualization.arrayToDataTable([
+                                                ['CST', 'Valores'],
+                                                ['Iguais', @Html.Raw(ViewBag.CstNFEAtaIgual)],
+                                                ['Diferentes', @Html.Raw(ViewBag.CstNFEAtaDif)],
+                                                ['Nulos Cliente', @Html.Raw(ViewBag.CstNFEAtaNulaCliente)],
+                                                ['Nulos MTX', @Html.Raw(ViewBag.CstNFEAtaNulaMtx)]
+                                            ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                pieHole: 0.3,
+                                                pieSliceTextStyle: {
+                                                    color: 'black',
+                                                    fontSize: '10'
+                                                },
+                                                legend: 'true'
+                                            };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstNfeAta'));
+                                            chart.draw(data, options);
+
+
+                                        }
+
+                                             /*CSosnt NFE For Simples Nacional*/
+                                            function cstNfeSN()
+                                            {
+                                                 var data = google.visualization.arrayToDataTable([
+                                                    ['CST', 'Valores'],
+                                                    ['Iguais', @Html.Raw(ViewBag.CstNFESNIgual)],
+                                                    ['Diferentes', @Html.Raw(ViewBag.CstNFESNDif)],
+                                                    ['Nulos Cliente', @Html.Raw(ViewBag.CstNFESNNulaCliente)],
+                                                    ['Nulos MTX', @Html.Raw(ViewBag.CstNFESNNulaMtx)]
+                                                ]);
+
+                                            var options = {
+                                                title: 'Relação Cliente x Matriz',
+                                                sliceVisibilityThreshold: .00001,
+                                                    pieHole: 0.3,
+                                                    pieSliceTextStyle: {
+                                                        color: 'black',
+                                                        fontSize: '10'
+                                                    },
+                                                    legend: 'true'
+                                                };
+
+                                                var chart = new google.visualization.PieChart(document.getElementById('cstNfeSN'));
+                                                chart.draw(data, options);
+
+
+                                            }
+
+
+
+
+
+
+         });
+
+        /*Produtos*/
+         $(document).ready(function () {
+                                             google.charts.load("current", { packages: ["corechart"] });
+                                                 google.charts.setOnLoadCallback(prodDesc);
+                                                 google.charts.setOnLoadCallback(prodNcm);
+                                                 google.charts.setOnLoadCallback(prodCest);
+
+                                                 function prodDesc() {
+                                                     var data = google.visualization.arrayToDataTable([
+                                                         ['Produto', 'Descrição'],
+                                                         ['Descrição igual', @Html.Raw(ViewBag.ProdDescIguais)],
+                                                         ['Descrição diferente', @Html.Raw(ViewBag.ProdDescDif)],
+                                                         ['Descrição nula', @Html.Raw(ViewBag.ProdDescNull)]
+
+                                                     ]);
+
+                                                     var options = {
+                                                         title: 'Relação Cliente x Matriz',
+                                                         sliceVisibilityThreshold: .00001,
+                                                         pieHole: 0.3,
+                                                         pieSliceTextStyle: {
+                                                            color: 'black',
+                                                            fontSize: '10'
+                                                          },
+                                                            legend: 'true'
+                                                     };
+
+                                                     var chart = new google.visualization.PieChart(document.getElementById('prodDesc'));
+                                                     chart.draw(data, options);
+                                                 }
+
+                                                 function prodNcm() {
+                                                     var data = google.visualization.arrayToDataTable([
+                                                         ['Produto', 'NCM'],
+                                                         ['Com NCM', @Html.Raw(ViewBag.ProdNCMCom)],
+                                                         ['Sem NCM', @Html.Raw(ViewBag.ProdNCMSem)]
+
+                                                     ]);
+
+                                                     var options = {
+                                                         title: 'Relação Cliente x Matriz',
+                                                         sliceVisibilityThreshold: .00001,
+                                                         pieHole: 0.3,
+                                                         pieSliceTextStyle: {
+                                                            color: 'black',
+                                                            fontSize: '10'
+                                                          },
+                                                            legend: 'true'
+                                                     };
+
+                                                     var chart = new google.visualization.PieChart(document.getElementById('prodNcm'));
+
+                                                     
+
+                                                     chart.draw(data, options);
+                                                 }//fim prodncm
+
+                                                 function prodCest() {
+                                                     var data = google.visualization.arrayToDataTable([
+                                                         ['Produto', 'CEST'],
+                                                         ['Com CEST', @Html.Raw(ViewBag.ProdCESTCom)],
+                                                     
+                                                         ['Sem CEST', @Html.Raw(ViewBag.ProdCESTSem)]
+
+                                                     ]);
+
+                                                     var options = {
+                                                         title: 'Relação Cliente x Matriz',
+                                                         sliceVisibilityThreshold: .00001,
+                                                         pieHole: 0.3,
+                                                         pieSliceTextStyle: {
+                                                            color: 'black',
+                                                            fontSize: '10'
+                                                          },
+                                                            legend: 'true'
+                                                     };
+
+                                                     var chart = new google.visualization.PieChart(document.getElementById('prodCest'));
+                                                    
+                                                     chart.draw(data, options);
+                                                 }//fim prod cest
+
+                                             });
+
+
+    </script>
+
+
+
+
+    @*@Scripts.Render("~/bundles/jquery")*@
+    @*@Scripts.Render("~/bundles/bootstrap")*@
+    @RenderSection("scripts", required: false)
+</body>
+</html>

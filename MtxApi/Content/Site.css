@@ -1,0 +1,45 @@
+﻿
+
+/* Set padding to keep content from hitting the edges */
+
+
+/* Set width on the form input elements since they're 100% wide by default */
+
+select,
+textarea {
+    max-width: 280px;
+}
+.prn-thead {
+    background-color: #021E36 !important;
+    color: #ffffff;
+    font-weight: 200;
+}
+.jumbotron {
+    height:500px;
+    background: url(/Content/Img/fundo_principal.jpg);
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.prn-fonte {
+    color:#fff;
+    font-weight: 600;
+    font-size: 1rem;
+    text-shadow: 0.1em 0.1em 0.2em black
+}
+.pr-card-cad {
+    margin-left: 5px !important;
+}
+.pr-container {
+    padding-left: 2px !important;
+    margin-top: 0rem;
+   
+}
+
+.pr-container-2 {
+    padding-left: 2px !important;
+    margin-top: 0.15rem;
+   
+}
+.card-body {
+    padding: 0.9rem !important;
+}
