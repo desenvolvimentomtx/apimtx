@@ -8,7 +8,7 @@ namespace MtxApi.Models
 {
     public class MtxClienteContext : DbContext
     {
-        public MtxClienteContext() : base("name=MtxApiContext")
+        public MtxClienteContext() : base("name=MtxClienteContext")
         {
         }
         //acesso ao model Empresa do projeto Matriz
