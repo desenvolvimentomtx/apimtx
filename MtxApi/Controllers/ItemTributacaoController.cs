@@ -10,7 +10,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Web;
 using System.Web.Http;
-//ALTERAÇÃO 24032023
+//ALTERAÇÃO na maquina virutal
 namespace MtxApi.Controllers
 {
     public class ItemTributacaoController : ApiController
