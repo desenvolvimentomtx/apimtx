@@ -65,12 +65,13 @@ namespace MtxApi.Controllers
             /*CONFIRMAR EXISTENCIA DA EMPRESA */
 
             //formatando a string
-            string cnpjFormatado = FormataCnpj.FormatarCNPJ(cnpj);
+            string cnpjFormatado = FormataCnpj.FormatarCNPJ(cnpj); //puro
+            string cnpjItemFormatado = ""; //que veio do json
 
             ////Instancia do contexto do banco
             //MtxApiContext db = new MtxApiContext();
 
-            //Cria o objeto empresa pelo seu cnpj
+            //Cria o objeto empresa pelo seu cnpj: que foi passado pelo post da api
             Empresa empresa = db.Empresas.FirstOrDefault(x => x.cnpj.Equals(cnpjFormatado));
 
             //se for nula, não existe
@@ -84,38 +85,14 @@ namespace MtxApi.Controllers
                 return BadRequest("Chave incorreta para o CNPJ: " + cnpjFormatado + ": CORRESPONDENCIA INVÁLIDA");
             }
 
-            /*VERIFICAÇÕES NOS DADOS DO JSON ENVIADO */
-            foreach (ItemTributacaoJson item in itens)
-            {
-                //Cnpj incorreto: veio nullo
-                if (item.CNPJ_EMPRESA == null)
-                {
-                    return BadRequest("ITEM DO JSON SEM CNPJ DE EMPRESA!");
-                }
-                else //caso nao seja nulo
-                {
 
 
-                    if (item.CNPJ_EMPRESA != cnpjFormatado) //verifica se é diferente ao formatado
-                    {
-                        if (item.CNPJ_EMPRESA != cnpj) //se for ele ainda verifica se é diferente do cnpj original
-                        {
-                            //se ambos estiverem diferentes retorna o erro
-                            return BadRequest("CNPJ DE ITEM NO JSON DIFERE DO CNPJ INFORMADO COMO PARAMETRO!");
-                        }
-
-                    }
-
-                }
-
-
-
-            } //fim foreach
-              //contador auxiliar
+            //contador auxiliar
             int cont = 0;
             int contAlterados = 0;
             int contProdSalvos = 0;
             int contRegistrosNulos = 0;
+            int contRegistrosCNPJInválido = 0;
 
             //verificar o numero de intes, se forem nullo os itens do json vieram vazios
             if (itens == null)
@@ -127,556 +104,223 @@ namespace MtxApi.Controllers
             //lista com o objeto para retorno
             List<TributacaoEmpresa> listaSalvosTribEmpresa = new List<TributacaoEmpresa>();
 
-            //laço para percorrer o objeto recebido e salvo no json
+
+            /*VERIFICAÇÕES NOS DADOS DO JSON ENVIADO */
             foreach (ItemTributacaoJson item in itens)
             {
-                //VARIAVEIS AUXILIARES
-                codBarrasGerado = "";
-                contRegistrosNulos = 0;
-
-                //CONDICIONAL PARA VERIFICAR SE O ESTADO ORIGEM E DESTINO VEIO VAZIO
-                if (item.UF_ORIGEM == null || item.UF_ORIGEM == "" || item.UF_DESTINO == null || item.UF_DESTINO == "")
+                //Cnpj incorreto: veio nullo
+                if (item.CNPJ_EMPRESA == null || item.CNPJ_EMPRESA == "")
                 {
-                    auxEstado++; //CASO ESTEJA NULO ELE SOME MAIS UM NA VARIAVEL DE APOIO, E SAI DO LAÇO CONDICIONAL PASSANDO PARA O PROXIMO ITEM DO ARQUIVO JSON
+                    //return BadRequest("ITEM DO JSON SEM CNPJ DE EMPRESA!");
+                    contRegistrosCNPJInválido++;
                 }
-                else //SE NAO TIVER NULO OU VAZIO ELE CONTINUA O PROCESSO DESSE ITEM
+                else //caso nao seja nulo
                 {
-                    //CASO O ITEM NAO VENHA COM CODIGO DE BARRAS NULO, OU COM VALOR 0 ELE ENTRA E CONTINUA O PROCESSO
-                    if (item.PRODUTO_COD_BARRAS != null && item.PRODUTO_COD_BARRAS != "0")
+                    cnpjItemFormatado = FormataCnpj.FormatarCNPJ(item.CNPJ_EMPRESA);
+
+
+                    //verifica se o cnpj passado no ITEM é diferente do cnpj passado no parametro da requisição
+                    if (cnpjItemFormatado != cnpjFormatado) 
                     {
-                        //Vefificar o tamanho da string e retirando os espaços de inicio e fim 
-                        item.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS.Trim();
+                        //return BadRequest("ITEM DO JSON SEM CNPJ DE EMPRESA!");
+                        contRegistrosCNPJInválido++;
 
-                        //Pegar o tamanho do codigo de barras enviado pelo json
-                        int tamanho = item.PRODUTO_COD_BARRAS.Length;
+                    }
+                    else //CASO O CNPJ DO ITEM ESTEJA CORRETO E IGUAL AO PASSADO PELO PARAMETRO, ELE CONTINUA O PROCESSO
+                    {
+                        //VARIAVEIS AUXILIARES
+                        codBarrasGerado = "";
+                        contRegistrosNulos = 0;
 
-                        //PEGA OS DESTINO
-                        string[] ufDestinoIni = item.UF_DESTINO.Split('|');
-
-                        /*VAI PASSAR POR TODOS OS DESTINOS VERIFICANDO SE EXISTE O PRODUTO LANÇADO NA TRIBUTAÇÃO NO CLIENTE*/
-
-                        //retira o elemento vazio do array
-                        ufDestinoIni = ufDestinoIni.Where(a => a != "").ToArray();
-
-                        //verifivar se o item está na tabela de cliente
-                        //PERCORRER TODOS OS DESTINOS
-                        for (int i = 0; i < ufDestinoIni.Count(); i++)
+                        //CONDICIONAL PARA VERIFICAR SE O ESTADO ORIGEM E DESTINO VEIO VAZIO
+                        if (item.UF_ORIGEM == null || item.UF_ORIGEM == "" || item.UF_DESTINO == null || item.UF_DESTINO == "")
                         {
-                            string dest = ufDestinoIni[i].ToString();
-
-                           
-                            /*Caso ele esteja na tabela de cliente, precisamos pegar o cod_de_barras_gerado pelo mtx pra prosseguir*/
-                            TributacaoEmpresa tribEmpresas3 = db.TributacaoEmpresas.Where(x => x.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && x.CNPJ_EMPRESA.Contains(cnpjFormatado) && x.UF_ORIGEM.Equals(item.UF_ORIGEM) && x.UF_DESTINO.Equals(dest)).FirstOrDefault(); //verifica o cadastro
-
-                            //se for tribEmpresas3 diferente de nula, quer dizer que ha tributacação para esse destino, É PRECISO ENTAO ANALISAR O ITEM                                                                                                                                                                                                                                                        //se for diferente de nula, quer dizer que ha tributacação para esse destino
-                            if (tribEmpresas3 != null)
+                            auxEstado++; //CASO ESTEJA NULO ELE SOME MAIS UM NA VARIAVEL DE APOIO, E SAI DO LAÇO CONDICIONAL PASSANDO PARA O PROXIMO ITEM DO ARQUIVO JSON
+                        }
+                        else //SE NAO TIVER NULO OU VAZIO ELE CONTINUA O PROCESSO DESSE ITEM
+                        {
+                            //CASO O ITEM NAO VENHA COM CODIGO DE BARRAS NULO, OU COM VALOR 0 ELE ENTRA E CONTINUA O PROCESSO
+                            if (item.PRODUTO_COD_BARRAS != null && item.PRODUTO_COD_BARRAS != "0")
                             {
-                                //PEGAR O VALOR DO COD_BARRAS_GERADO CASO SEJA DIFERENTE DE NULO, PARA TODOS OS ITENS QUE FOREM ANALISADOS PELO FOR
-                                if (tribEmpresas3.COD_BARRAS_GERADO != null)
+                                //Vefificar o tamanho da string e retirando os espaços de inicio e fim 
+                                item.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS.Trim();
+
+                                //Pegar o tamanho do codigo de barras enviado pelo json
+                                int tamanho = item.PRODUTO_COD_BARRAS.Length;
+
+                                //PEGA OS DESTINO
+                                string[] ufDestinoIni = item.UF_DESTINO.Split('|');
+
+                                /*VAI PASSAR POR TODOS OS DESTINOS VERIFICANDO SE EXISTE O PRODUTO LANÇADO NA TRIBUTAÇÃO NO CLIENTE*/
+
+                                //retira o elemento vazio do array
+                                ufDestinoIni = ufDestinoIni.Where(a => a != "").ToArray();
+
+                                //verifivar se o item está na tabela de cliente
+                                //PERCORRER TODOS OS DESTINOS
+                                for (int i = 0; i < ufDestinoIni.Count(); i++)
                                 {
-                                    codBarrasGerado = tribEmpresas3.COD_BARRAS_GERADO; //a variavel codigo de barras gerado vai receber esse valor do objejeto
-                                }
-                                else
-                                {
-                                    /*Se ele for nulo,(o codigo de barras gerado do objeto) 
-                                    * ele tem que verificar se o tamanho do cod barras é maior que 7, se for ele so
-                                    * atribui ao codigo de barras gerado, se nao ele gera um novo, salva na tabela do cliente 
-                                    * e passa esse codigo gerado para frente para   que o cadastro do produto tenha o mesmo codigo,
-                                    * igualando as referencias*/
+                                    string dest = ufDestinoIni[i].ToString();
 
-                                    if (tribEmpresas3.PRODUTO_COD_BARRAS.Count() > 7)
+
+                                    /*Caso ele esteja na tabela de cliente, precisamos pegar o cod_de_barras_gerado pelo mtx pra prosseguir*/
+                                    TributacaoEmpresa tribEmpresas3 = db.TributacaoEmpresas.Where(x => x.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && x.CNPJ_EMPRESA.Contains(cnpjFormatado) && x.UF_ORIGEM.Equals(item.UF_ORIGEM) && x.UF_DESTINO.Equals(dest)).FirstOrDefault(); //verifica o cadastro
+
+                                    //se for tribEmpresas3 diferente de nula, quer dizer que ha tributacação para esse destino, É PRECISO ENTAO ANALISAR O ITEM                                                                                                                                                                                                                                                        //se for diferente de nula, quer dizer que ha tributacação para esse destino
+                                    if (tribEmpresas3 != null)
                                     {
-                                        codBarrasGerado = tribEmpresas3.PRODUTO_COD_BARRAS.ToString();
-                                        TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                        /*VERIFICAR TODOS OS DESTINO*/
-
-                                        itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
-                                        itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
-
-                                        db.SaveChanges(); //salva com o mesmo numero do codigo de barras, pois ele eh maior que 7
-                                    }
-                                    else
-                                    {
-                                        if (codBarrasGerado != "") //VERIFICA SE É DIFERENTE DE VAZIO, SE FOR DIFERENTE DE VAZIO, QUER DIZER QUE TEM ALGO E ATRIBUI
+                                        //PEGAR O VALOR DO COD_BARRAS_GERADO CASO SEJA DIFERENTE DE NULO, PARA TODOS OS ITENS QUE FOREM ANALISADOS PELO FOR
+                                        if (tribEmpresas3.COD_BARRAS_GERADO != null)
                                         {
-                                            TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                            /*VERIFICAR TODOS OS DESTINO*/
-
-                                            itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
-                                            itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
-
-                                            db.SaveChanges();
-
-                                        }//SE FOR VAZIO GERA-SE UM CODIGO RANDOMICO E ATRUIBUI
+                                            codBarrasGerado = tribEmpresas3.COD_BARRAS_GERADO; //a variavel codigo de barras gerado vai receber esse valor do objejeto
+                                        }
                                         else
                                         {
-                                            Random randNum = new Random();
+                                            /*Se ele for nulo,(o codigo de barras gerado do objeto) 
+                                            * ele tem que verificar se o tamanho do cod barras é maior que 7, se for ele so
+                                            * atribui ao codigo de barras gerado, se nao ele gera um novo, salva na tabela do cliente 
+                                            * e passa esse codigo gerado para frente para   que o cadastro do produto tenha o mesmo codigo,
+                                            * igualando as referencias*/
 
-                                            for (int ib = 0; ib < 1; ib++)
+                                            if (tribEmpresas3.PRODUTO_COD_BARRAS.Count() > 7)
                                             {
-                                                codBarrasGerado = (randNum.Next().ToString());
+                                                codBarrasGerado = tribEmpresas3.PRODUTO_COD_BARRAS.ToString();
+                                                TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                                /*VERIFICAR TODOS OS DESTINO*/
+
+                                                itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
+                                                itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
+
+                                                db.SaveChanges(); //salva com o mesmo numero do codigo de barras, pois ele eh maior que 7
                                             }
-                                            TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                            /*VERIFICAR TODOS OS DESTINO*/
+                                            else
+                                            {
+                                                if (codBarrasGerado != "") //VERIFICA SE É DIFERENTE DE VAZIO, SE FOR DIFERENTE DE VAZIO, QUER DIZER QUE TEM ALGO E ATRIBUI
+                                                {
+                                                    TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                                    /*VERIFICAR TODOS OS DESTINO*/
 
-                                            itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
-                                            itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
+                                                    itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
+                                                    itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
 
+                                                    db.SaveChanges();
+
+                                                }//SE FOR VAZIO GERA-SE UM CODIGO RANDOMICO E ATRUIBUI
+                                                else
+                                                {
+                                                    Random randNum = new Random();
+
+                                                    for (int ib = 0; ib < 1; ib++)
+                                                    {
+                                                        codBarrasGerado = (randNum.Next().ToString());
+                                                    }
+                                                    TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                                    /*VERIFICAR TODOS OS DESTINO*/
+
+                                                    itemSalvar = db.TributacaoEmpresas.Find(tribEmpresas3.ID);
+                                                    itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
+
+                                                    db.SaveChanges();
+                                                }
+
+                                            }//FIM DO ELSE DA VERIFICACAO DO CODIGO BARRAS GERADO
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //se nesse destino vier nula, efetuar um contador para verificar se o codBArrasGerado foi atribuido algum valor
+                                        contRegistrosNulos++;
+                                    }
+
+
+
+
+                                }//FIM DO FOR QUE PERCORRE O ARRAY DE DESTINO
+
+
+                                //apos o for, verificar o contador de registros nulos, se não continuar 0 quer dizer que  foi encontardo registro na
+                                //tabela do cliente, ou seja, NÃO devemos gerar um codigo de barras para atribuir ao valor do campo codigo de barras gerado
+                                if (contRegistrosNulos != 0)
+                                {
+                                    if (item.PRODUTO_COD_BARRAS.Count() <= 7) //se for menor ou igual a sete, devemos gerar um codigo de barras
+                                    {
+                                        Random randNum = new Random();
+
+                                        for (int ib = 0; ib < 1; ib++)
+                                        {
+                                            codBarrasGerado = (randNum.Next().ToString());
+                                        }
+                                    }
+                                    else
+                                    {
+                                        codBarrasGerado = item.PRODUTO_COD_BARRAS.ToString();
+                                    }
+                                }
+
+                                //condicional tamanho do codigo de barras
+                                if (tamanho > 7)
+                                {
+                                    //verificar se o produto ja foi importado
+                                    var tribEmpresas2 = from s in db.TributacaoEmpresas select s; //select na tabela
+                                    /*Implementar busca pela categoria e verificar se a categoria que vem do cliente
+                                     existe na tabela de categoria da matriz*/
+                                    //pegou o ID da categoria
+                                    var categoriaProd = (from ab in db.CategoriasProdutos where item.PRODUTO_CATEGORIA == ab.descricao select ab.id).FirstOrDefault();
+                                    //Se houver a categoria ele atribui ao item e continua, caso não tenha ele atribui nullo e continua
+                                    /*Isso se deve ao fato que o cliente pode haver mais categorias e/ou categorias diferentes
+                                     o que não é relevante para analise, por isso atribuimos nulla caso seja diferente ou inexistente
+                                    na tabela da matriz*/
+                                    if (categoriaProd > 0)
+                                    {
+                                        item.PRODUTO_CATEGORIA = categoriaProd.ToString();
+                                    }
+                                    else
+                                    {
+                                        item.PRODUTO_CATEGORIA = null;
+                                    }
+                                    /*ROTINA PARA VERIFICAR SE O PRODUTO ESTÁ CADASTRADO E TRIBUTADO NA TABELA MATRIZ*/
+                                    long? prodItem = long.Parse(item.PRODUTO_COD_BARRAS);
+                                    /*TO-DO
+                                    * Essa busca deve ser melhorada, so pelo codigo de barras não é suficiente, uma vez
+                                    * que existem outros codigos de barras iguais cadastrados anteriormente*/
+
+                                    Produto cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado.Equals(codBarrasGerado.ToString())).FirstOrDefault(); //verifica o cadastro
+
+                                    Produto prodSalvar = new Produto();
+
+                                    //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
+                                    if (cadProd == null)
+                                    {
+
+                                        prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
+                                        prodSalvar.CodBarrasGErado = codBarrasGerado;
+                                        prodSalvar.descricao = item.PRODUTO_DESCRICAO;
+                                        prodSalvar.cest = item.PRODUTO_CEST;
+                                        prodSalvar.ncm = item.PRODUTO_NCM;
+
+                                        if (item.PRODUTO_CATEGORIA != null)
+                                        {
+                                            prodSalvar.idCategoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
+
+                                        }
+                                        else
+                                        {
+                                            prodSalvar.idCategoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
+                                        }
+
+                                        prodSalvar.status = 1;
+                                        prodSalvar.dataCad = DateTime.Now;
+                                        prodSalvar.dataAlt = DateTime.Now;
+                                        prodSalvar.auditadoNCM = 0; //nao auditado
+
+                                        //try-catch para salvar o produto na tabela
+                                        try
+                                        {
+
+                                            db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
                                             db.SaveChanges();
-                                        }
 
-                                    }//FIM DO ELSE DA VERIFICACAO DO CODIGO BARRAS GERADO
-                                }
-                            }
-                            else
-                            {
-                                //se nesse destino vier nula, efetuar um contador para verificar se o codBArrasGerado foi atribuido algum valor
-                                contRegistrosNulos++;
-                            }
-
-
-
-
-                        }//FIM DO FOR QUE PERCORRE O ARRAY DE DESTINO
-
-
-                        //apos o for, verificar o contador de registros nulos, se não continuar 0 quer dizer que  foi encontardo registro na
-                        //tabela do cliente, ou seja, NÃO devemos gerar um codigo de barras para atribuir ao valor do campo codigo de barras gerado
-                        if (contRegistrosNulos != 0)
-                        {
-                            if (item.PRODUTO_COD_BARRAS.Count() <= 7) //se for menor ou igual a sete, devemos gerar um codigo de barras
-                            {
-                                Random randNum = new Random();
-
-                                for (int ib = 0; ib < 1; ib++)
-                                {
-                                    codBarrasGerado = (randNum.Next().ToString());
-                                }
-                            }
-                            else
-                            {
-                                codBarrasGerado = item.PRODUTO_COD_BARRAS.ToString();
-                            }
-                        }
-
-                        //condicional tamanho do codigo de barras
-                        if (tamanho > 7)
-                        {
-                            //verificar se o produto ja foi importado
-                            var tribEmpresas2 = from s in db.TributacaoEmpresas select s; //select na tabela
-                            /*Implementar busca pela categoria e verificar se a categoria que vem do cliente
-                             existe na tabela de categoria da matriz*/
-                            //pegou o ID da categoria
-                            var categoriaProd = (from ab in db.CategoriasProdutos where item.PRODUTO_CATEGORIA == ab.descricao select ab.id).FirstOrDefault();
-                            //Se houver a categoria ele atribui ao item e continua, caso não tenha ele atribui nullo e continua
-                            /*Isso se deve ao fato que o cliente pode haver mais categorias e/ou categorias diferentes
-                             o que não é relevante para analise, por isso atribuimos nulla caso seja diferente ou inexistente
-                            na tabela da matriz*/
-                            if (categoriaProd > 0)
-                            {
-                                item.PRODUTO_CATEGORIA = categoriaProd.ToString();
-                            }
-                            else
-                            {
-                                item.PRODUTO_CATEGORIA = null;
-                            }
-                            /*ROTINA PARA VERIFICAR SE O PRODUTO ESTÁ CADASTRADO E TRIBUTADO NA TABELA MATRIZ*/
-                            long? prodItem = long.Parse(item.PRODUTO_COD_BARRAS);
-                            /*TO-DO
-                            * Essa busca deve ser melhorada, so pelo codigo de barras não é suficiente, uma vez
-                            * que existem outros codigos de barras iguais cadastrados anteriormente*/
-
-                            Produto cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado.Equals(codBarrasGerado.ToString())).FirstOrDefault(); //verifica o cadastro
-
-                            Produto prodSalvar = new Produto();
-
-                            //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
-                            if (cadProd == null)
-                            {
-
-                                prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
-                                prodSalvar.CodBarrasGErado = codBarrasGerado;
-                                prodSalvar.descricao = item.PRODUTO_DESCRICAO;
-                                prodSalvar.cest = item.PRODUTO_CEST;
-                                prodSalvar.ncm = item.PRODUTO_NCM;
-
-                                if (item.PRODUTO_CATEGORIA != null)
-                                {
-                                    prodSalvar.idCategoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
-
-                                }
-                                else
-                                {
-                                    prodSalvar.idCategoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
-                                }
-
-                                prodSalvar.status = 1;
-                                prodSalvar.dataCad = DateTime.Now;
-                                prodSalvar.dataAlt = DateTime.Now;
-                                prodSalvar.auditadoNCM = 0; //nao auditado
-
-                                //try-catch para salvar o produto na tabela
-                                try
-                                {
-
-                                    db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
-                                    db.SaveChanges();
-
-                                    contProdSalvos++;
-                                }
-                                catch (Exception e)
-                                {
-                                    //erros e mensagens
-                                    if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
-                                    {
-
-                                        _log.Error(e.InnerException.InnerException.Message);
-                                        return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
-                                    }
-
-                                    if (e.Message != null)
-                                    {
-
-                                        _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                        return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
-                                    }
-
-                                    return BadRequest("ERRO AO SALVAR PRODUTO");
-                                }//fim do catch
-
-
-
-                            } //fim cad produto
-
-                            //VERIFICAR SE HA TRIBUTAÇÃO PARA O PRODUTO DEPENDENDO DA EMPRESA (SIMPLES OU NORMAL)
-                            if (cadProd == null)
-                            {
-                                cadProd = db.Produtos.Where(x => x.codBarras == prodItem).FirstOrDefault();
-                            }
-                            /*Salvar na tabela TributacaoNCM, caso nao exista*/
-                            string prodItemNCM = item.PRODUTO_NCM; //PEGA O NCM DO ITEM
-                                                                   //Array de destino: PEGA TODOS OS DESTINOS QUE VIERAM NO JSON DO CLIENTE
-                            string[] ufDestinoProd = item.UF_DESTINO.Split('|');
-
-                            //retira o elemento vazio do array
-                            ufDestinoProd = ufDestinoProd.Where(a => a != "").ToArray();
-
-                            //PEGA O CRT E O REGIME TRIBUTARIO DA EMPRESA
-                            int? crt = empresa.crt;
-                            int? regime_tributario = empresa.regime_trib;
-
-                            //PASSAR PELOS DESTINOS PARA PROCURAR OS ITENS NA TABELA DE NCM - se faz necessario pois cada tributacao tem sua origem e destino
-                            for (int i = 0; i < ufDestinoProd.Count(); i++)
-                            {
-                                string dest = ufDestinoProd[i].ToString();
-                                //BUSCA PELO NCM NA TABELA, PASSANDO O CRT E O REGIME
-                                TributacaoNCM tribnaNCM = db.TributacaoNCM.Where(x => x.ncm == prodItemNCM && x.UF_Origem == item.UF_ORIGEM && x.UF_Destino == dest && x.CRT == crt && x.Regime_Trib == regime_tributario).FirstOrDefault();
-
-                                if (tribnaNCM == null) //SE FOR NULLO NAO HA TRIBUTACAO PARA ESSE ITEM NA TABELA
-                                {
-                                    //MONTAR O MECANISMO PARA SALVAR O ITEM NA TABELA
-                                    TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
-                                    //VERIFICAR A CATEGORIA
-                                    if (item.PRODUTO_CATEGORIA != null)
-                                    {
-                                        prodTribNCMSalvar.categoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
-
-                                    }
-                                    else
-                                    {
-                                        prodTribNCMSalvar.categoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
-                                    }
-
-                                    //ATRIBUIR OS OUTROS DADOS
-                                    prodTribNCMSalvar.UF_Origem = item.UF_ORIGEM;
-                                    prodTribNCMSalvar.UF_Destino = ufDestinoProd[i];
-                                    prodTribNCMSalvar.cest = item.PRODUTO_CEST;
-                                    prodTribNCMSalvar.ncm = item.PRODUTO_NCM;
-                                    prodTribNCMSalvar.auditadoPorNCM = 0;
-                                    prodTribNCMSalvar.CRT = crt;
-                                    prodTribNCMSalvar.Regime_Trib = regime_tributario;
-                                    prodTribNCMSalvar.dataCad = DateTime.Now;
-                                    prodTribNCMSalvar.dataAlt = DateTime.Now;
-
-                                    //TRY CATCH PARA SALVAR O ITEM NA TABELA
-                                    try
-                                    {
-                                        //salvar
-                                        db.TributacaoNCM.Add(prodTribNCMSalvar);//objeto para ser salvo no banco
-                                        db.SaveChanges();
-
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        //erros e mensagens
-                                        if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
-                                        {
-
-                                            _log.Error(e.InnerException.InnerException.Message);
-                                            return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
-                                        }
-
-                                        if (e.Message != null)
-                                        {
-
-                                            _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                            return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
-                                        }
-
-                                        return BadRequest("ERRO AO SALVAR PRODUTO");
-                                    }//fim do catch
-
-
-                                }//FIM DA VERIFICACAO SE VEIO NULO A CONSULTA
-
-
-                            }//FIM DO FOR PARA BUSCAR NA TABELA DE TRIBUTACAO POR NCM
-                             //contar os que vieram com codigo de barras 0
-                            if (item.PRODUTO_COD_BARRAS == "0")
-                            {
-                                prodZerado++;
-                            }
-
-                            //Verificar em todos os destinos se o item foi tributado no cliente
-                            string[] ufDestino = item.UF_DESTINO.Split('|');
-                            //retira o elemento vazio do array deixando somente os id dos registros
-                            ufDestino = ufDestino.Where(a => a != "").ToArray();
-                            for (int i = 0; i < ufDestino.Count(); i++)
-                            {
-                                string dest = ufDestino[i].ToString();
-                                //where: where com o codigo de barras do produto e cnpj
-                                /*aqui ele verifica se o produto ja contem no cnpj informado*/
-                                tribEmpresas2 = tribEmpresas2.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest));
-
-                                //se vier algo da consulta acima: se vier 0 ELE VAI SALVAR O ITEM NA TABELA DO CLIENTE
-                                if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
-                                {
-                                    TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                    //atribunido dados ao objeto
-                                    itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
-                                    itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
-                                    itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
-                                    itemSalvar.PRODUTO_DESCRICAO = item.PRODUTO_DESCRICAO;
-                                    itemSalvar.PRODUTO_CEST = item.PRODUTO_CEST;
-                                    itemSalvar.PRODUTO_NCM = item.PRODUTO_NCM;
-                                    itemSalvar.PRODUTO_CATEGORIA = item.PRODUTO_CATEGORIA;/*Ponto a analisar, pois vem do cliente descrição*/
-                                    itemSalvar.FECP = item.FECP;
-                                    itemSalvar.COD_NAT_RECEITA = item.COD_NAT_RECEITA;
-                                    itemSalvar.CST_ENTRADA_PIS_COFINS = item.CST_ENTRADA_PIS_COFINS;
-                                    itemSalvar.CST_SAIDA_PIS_COFINS = item.CST_SAIDA_PIS_COFINS;
-                                    itemSalvar.ALIQ_ENTRADA_PIS = item.ALIQ_ENTRADA_PIS;
-                                    itemSalvar.ALIQ_SAIDA_PIS = item.ALIQ_ENTRADA_PIS;
-                                    itemSalvar.ALIQ_ENTRADA_COFINS = item.ALIQ_ENTRADA_COFINS;
-                                    itemSalvar.ALIQ_SAIDA_COFINS = item.ALIQ_SAIDA_COFINS;
-                                    itemSalvar.CST_VENDA_ATA = item.CST_VENDA_ATA;
-                                    itemSalvar.ALIQ_ICMS_VENDA_ATA = item.ALIQ_ICMS_VENDA_ATA;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = item.ALIQ_ICMS_ST_VENDA_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = item.RED_BASE_CALC_ICMS_VENDA_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
-                                    itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = item.CST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.CST_VENDA_VAREJO_CONT = item.CST_VENDA_VAREJO_CONT;
-                                    itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = item.ALIQ_ICMS_VENDA_VAREJO_CONT;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONT = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONT;
-                                    itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = item.RED_BASE_CALC_VENDA_VAREJO_CONT;
-                                    itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
-                                    itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = item.CST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.CST_COMPRA_DE_IND = item.CST_COMPRA_DE_IND;
-                                    itemSalvar.ALIQ_ICMS_COMP_DE_IND = item.ALIQ_ICMS_COMP_DE_IND;
-                                    itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = item.ALIQ_ICMS_ST_COMP_DE_IND;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
-                                    itemSalvar.CST_COMPRA_DE_ATA = item.CST_COMPRA_DE_ATA;
-                                    itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = item.ALIQ_ICMS_COMPRA_DE_ATA;
-                                    itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = item.ALIQ_ICMS_ST_COMPRA_DE_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
-                                    itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = item.CST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.CST_DA_NFE_DA_IND_FORN = item.CST_DA_NFE_DA_IND_FORN;
-                                    itemSalvar.CST_DA_NFE_DE_ATA_FORN = item.CST_DA_NFE_DE_ATA_FORN;
-                                    itemSalvar.CSOSNT_DANFE_DOS_NFOR = item.CSOSNT_DANFE_DOS_NFOR;
-                                    itemSalvar.ALIQ_ICMS_NFE = item.ALIQ_ICMS_NFE;
-                                    itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = item.ALIQ_ICMS_NFE_FOR_ATA;
-                                    itemSalvar.ALIQ_ICMS_NFE_FOR_SN = item.ALIQ_ICMS_NFE_FOR_SN;
-                                    itemSalvar.TIPO_MVA = item.TIPO_MVA;
-                                    itemSalvar.VALOR_MVA_IND = item.VALOR_MVA_IND;
-                                    itemSalvar.INICIO_VIGENCIA_MVA = item.INICIO_VIGENCIA_MVA; //data
-                                    itemSalvar.FIM_VIGENCIA_MVA = item.FIM_VIGENCIA_MVA; //data
-                                    itemSalvar.CREDITO_OUTORGADO = item.CREDITO_OUTORGADO;
-                                    itemSalvar.VALOR_MVA_ATACADO = item.VALOR_MVA_ATACADO;
-                                    itemSalvar.REGIME_2560 = item.REGIME_2560;
-                                    itemSalvar.UF_ORIGEM = item.UF_ORIGEM;
-                                    itemSalvar.UF_DESTINO = ufDestino[i];
-                                    itemSalvar.PRODUTO_COD_INTERNO = item.PRODUTO_COD_INTERNO;
-                                    //data da inclusão/alteração
-                                    itemSalvar.DT_ALTERACAO = DateTime.Now;
-
-
-                                    //Verifica se o item veio ativo, caso venha null considera ativo
-                                    if (item.ATIVO == null)
-                                    {
-                                        itemSalvar.ATIVO = 1;
-                                    }
-                                    else
-                                    {
-                                        itemSalvar.ATIVO = sbyte.Parse(item.ATIVO);
-                                    }
-
-
-
-                                    //try catch para salvar no banco e na lista de retorno
-                                    try
-                                    {
-
-                                        db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
-                                        bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
-                                        listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
-                                        db.SaveChanges();
-
-
-                                        cont++;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        //erros e mensagens
-                                        if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
-                                        {
-
-                                            _log.Error(e.InnerException.InnerException.Message);
-                                            return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
-                                        }
-
-                                        if (e.Message != null)
-                                        {
-
-                                            _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                            return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
-                                        }
-
-                                        return BadRequest("ERRO AO SALVAR ITEM");
-                                    }//fim do catch
-
-                                }
-                                else//SE O PRODUTO EXISTIR, ELE VAI SER ALTERADO NA ESTRUTURA ABAIXO
-                                {
-                                    //se ele nao existir na tabela do cliente ele dever ser importado
-                                    //se o codigo de barras não foi importado o entra na condição, ou seja o retorno do tribempresas2 é 0
-                                    //sendo zero o produto nao foi importado, agora ele será com todos os seus dados
-                                    //alteração 16092021->alem de nao ter encontrado nada no banco, count=0 o codigo de barras deve ser diferente de 0(zero)
-                                    //pegar o id desse registro
-                                    var idDoRegistros = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
-
-                                    if (idDoRegistros != 0)
-                                    {
-                                        TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                        itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
-                                        itemSalvar.PRODUTO_DESCRICAO = (itemSalvar.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar.PRODUTO_DESCRICAO) : itemSalvar.PRODUTO_DESCRICAO;
-                                        itemSalvar.PRODUTO_CEST = (itemSalvar.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar.PRODUTO_CEST) : itemSalvar.PRODUTO_CEST;
-                                        itemSalvar.PRODUTO_NCM = (itemSalvar.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar.PRODUTO_NCM) : itemSalvar.PRODUTO_NCM;
-                                        itemSalvar.PRODUTO_CATEGORIA = (itemSalvar.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar.PRODUTO_CATEGORIA) : itemSalvar.PRODUTO_CATEGORIA;
-                                        itemSalvar.FECP = (itemSalvar.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar.FECP) : itemSalvar.FECP;
-                                        itemSalvar.COD_NAT_RECEITA = (itemSalvar.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar.COD_NAT_RECEITA) : itemSalvar.COD_NAT_RECEITA;
-
-                                        itemSalvar.CST_ENTRADA_PIS_COFINS = (itemSalvar.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar.CST_ENTRADA_PIS_COFINS) : itemSalvar.CST_ENTRADA_PIS_COFINS;
-                                        itemSalvar.CST_SAIDA_PIS_COFINS = (itemSalvar.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar.CST_SAIDA_PIS_COFINS) : itemSalvar.CST_SAIDA_PIS_COFINS;
-                                        itemSalvar.ALIQ_ENTRADA_PIS = (itemSalvar.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar.ALIQ_ENTRADA_PIS) : itemSalvar.ALIQ_ENTRADA_PIS;
-                                        itemSalvar.ALIQ_SAIDA_PIS = (itemSalvar.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar.ALIQ_SAIDA_PIS) : itemSalvar.ALIQ_SAIDA_PIS;
-                                        itemSalvar.ALIQ_ENTRADA_COFINS = (itemSalvar.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar.ALIQ_ENTRADA_COFINS) : itemSalvar.ALIQ_ENTRADA_COFINS;
-                                        itemSalvar.ALIQ_SAIDA_COFINS = (itemSalvar.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar.ALIQ_SAIDA_COFINS) : itemSalvar.ALIQ_SAIDA_COFINS;
-
-                                        itemSalvar.CST_VENDA_ATA = (itemSalvar.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar.CST_VENDA_ATA) : itemSalvar.CST_VENDA_ATA;
-                                        itemSalvar.ALIQ_ICMS_VENDA_ATA = (itemSalvar.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar.ALIQ_ICMS_VENDA_ATA) : itemSalvar.ALIQ_ICMS_VENDA_ATA;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
-
-                                        itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-
-
-                                        itemSalvar.CST_VENDA_VAREJO_CONT = (itemSalvar.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar.CST_VENDA_VAREJO_CONT) : itemSalvar.CST_VENDA_VAREJO_CONT;
-                                        itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT;
-                                        itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT;
-                                        itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
-
-
-                                        itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-
-
-                                        itemSalvar.CST_COMPRA_DE_IND = (itemSalvar.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar.CST_COMPRA_DE_IND) : itemSalvar.CST_COMPRA_DE_IND;
-                                        itemSalvar.ALIQ_ICMS_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar.ALIQ_ICMS_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_COMP_DE_IND;
-                                        itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
-
-                                        itemSalvar.CST_COMPRA_DE_ATA = (itemSalvar.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar.CST_COMPRA_DE_ATA) : itemSalvar.CST_COMPRA_DE_ATA;
-                                        itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA;
-                                        itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
-
-                                        itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-
-
-                                        itemSalvar.CST_DA_NFE_DA_IND_FORN = (itemSalvar.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar.CST_DA_NFE_DA_IND_FORN) : itemSalvar.CST_DA_NFE_DA_IND_FORN;
-                                        itemSalvar.CST_DA_NFE_DE_ATA_FORN = (itemSalvar.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar.CST_DA_NFE_DE_ATA_FORN) : itemSalvar.CST_DA_NFE_DE_ATA_FORN;
-                                        itemSalvar.CSOSNT_DANFE_DOS_NFOR = (itemSalvar.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar.CSOSNT_DANFE_DOS_NFOR) : itemSalvar.CSOSNT_DANFE_DOS_NFOR;
-
-                                        itemSalvar.ALIQ_ICMS_NFE = (itemSalvar.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar.ALIQ_ICMS_NFE) : itemSalvar.ALIQ_ICMS_NFE;
-                                        itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA;
-                                        itemSalvar.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar.ALIQ_ICMS_NFE_FOR_SN;
-
-
-                                        itemSalvar.TIPO_MVA = (itemSalvar.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar.TIPO_MVA) : itemSalvar.TIPO_MVA;
-
-                                        itemSalvar.VALOR_MVA_IND = (itemSalvar.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar.VALOR_MVA_IND) : itemSalvar.VALOR_MVA_IND;
-
-                                        itemSalvar.INICIO_VIGENCIA_MVA = (itemSalvar.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar.INICIO_VIGENCIA_MVA) : itemSalvar.INICIO_VIGENCIA_MVA;
-
-                                        itemSalvar.FIM_VIGENCIA_MVA = (itemSalvar.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar.FIM_VIGENCIA_MVA) : itemSalvar.FIM_VIGENCIA_MVA;
-
-                                        itemSalvar.CREDITO_OUTORGADO = (itemSalvar.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar.CREDITO_OUTORGADO) : itemSalvar.CREDITO_OUTORGADO;
-
-                                        itemSalvar.VALOR_MVA_ATACADO = (itemSalvar.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar.VALOR_MVA_ATACADO) : itemSalvar.VALOR_MVA_ATACADO;
-
-                                        itemSalvar.REGIME_2560 = (itemSalvar.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar.REGIME_2560) : itemSalvar.REGIME_2560;
-
-                                        itemSalvar.UF_ORIGEM = (itemSalvar.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar.UF_ORIGEM) : itemSalvar.UF_ORIGEM;
-
-                                        itemSalvar.UF_DESTINO = (itemSalvar.UF_DESTINO != ufDestino[i]) ? ((item.UF_DESTINO != null) ? item.UF_DESTINO : ufDestino[i]) : itemSalvar.UF_DESTINO;
-
-                                        //data da inclusão/alteração
-                                        itemSalvar.DT_ALTERACAO = DateTime.Now;
-                                        //try catch para salvar no banco e na lista de retorno
-                                        try
-                                        {
-                                            //COLOCA NA LISTA PARA RETORNO
-                                            listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
-                                            db.SaveChanges(); //SALVAR AS ALTERACOES
-                                            
-                                            contAlterados++;
+                                            contProdSalvos++;
                                         }
                                         catch (Exception e)
                                         {
@@ -685,445 +329,546 @@ namespace MtxApi.Controllers
                                             {
 
                                                 _log.Error(e.InnerException.InnerException.Message);
-                                                return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
                                             }
 
                                             if (e.Message != null)
                                             {
 
                                                 _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                                return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
                                             }
 
-                                            return BadRequest("ERRO AO SALVAR ITEM");
+                                            return BadRequest("ERRO AO SALVAR PRODUTO");
                                         }//fim do catch
 
-                                    }//se o registro veio diferente de 0, DEVE SER ALTERADO
 
 
-                                }   //FIM DO ELSE PRODUTO JA CADASTRADO
+                                    } //fim cad produto
 
-
-                            }
-
-
-                        }
-                        else//fim da condicional de tamanho de codigo
-                        {
-                            /*Implementar busca pela categoria e verificar se a categoria que vem do cliente
-                            existe na tabela de categoria da matriz*/
-                            //pegou o ID da categoria
-                            var categoriaProd = (from ab in db.CategoriasProdutos where item.PRODUTO_CATEGORIA == ab.descricao select ab.id).FirstOrDefault();
-                            //Se houver a categoria ele atribui ao item e continua, caso não tenha ele atribui nullo e continua
-                            /*Isso se deve ao fato que o cliente pode haver mais categorias e/ou categorias diferentes
-                             o que não é relevante para analise, por isso atribuimos nulla caso seja diferente ou inexistente
-                            na tabela da matriz*/
-                            if (categoriaProd > 0)
-                            {
-                                item.PRODUTO_CATEGORIA = categoriaProd.ToString();
-                            }
-                            else
-                            {
-                                item.PRODUTO_CATEGORIA = null;
-                            }
-
-                            /*ROTINA PARA VERIFICAR SE O PRODUTO ESTÁ CADASTRADO E TRIBUTADO NA TABELA MATRIZ*/
-                         
-                            long? prodItem = long.Parse(item.PRODUTO_COD_BARRAS); //passa para long
-
-                            Produto cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado.Equals(codBarrasGerado.ToString())).FirstOrDefault(); //verifica o cadastro
-
-
-                            Produto prodSalvar = new Produto();
-
-                            //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
-                            if (cadProd == null)
-                            {
-
-                                prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
-                                prodSalvar.CodBarrasGErado = codBarrasGerado;
-                                prodSalvar.descricao = item.PRODUTO_DESCRICAO;
-                                prodSalvar.cest = item.PRODUTO_CEST;
-                                prodSalvar.ncm = item.PRODUTO_NCM;
-
-                                if (item.PRODUTO_CATEGORIA != null)
-                                {
-                                    prodSalvar.idCategoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
-
-                                }
-                                else
-                                {
-                                    prodSalvar.idCategoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
-                                }
-
-                                prodSalvar.status = 1;
-                                prodSalvar.dataCad = DateTime.Now;
-                                prodSalvar.dataAlt = DateTime.Now;
-                                prodSalvar.auditadoNCM = 0; //nao auditado
-
-                                //try-catch para salvar o produto na tabela
-                                try
-                                {
-
-                                    db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
-                                    bd.Produtos.Add(prodSalvar);//objeto para ser salvo no banco de comparação
-                                    db.SaveChanges();
-
-                                    contProdSalvos++;
-                                }
-                                catch (Exception e)
-                                {
-                                    //erros e mensagens
-                                    if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                    //VERIFICAR SE HA TRIBUTAÇÃO PARA O PRODUTO DEPENDENDO DA EMPRESA (SIMPLES OU NORMAL)
+                                    if (cadProd == null)
                                     {
+                                        cadProd = db.Produtos.Where(x => x.codBarras == prodItem).FirstOrDefault();
+                                    }
+                                    /*Salvar na tabela TributacaoNCM, caso nao exista*/
+                                    string prodItemNCM = item.PRODUTO_NCM; //PEGA O NCM DO ITEM
+                                                                           //Array de destino: PEGA TODOS OS DESTINOS QUE VIERAM NO JSON DO CLIENTE
+                                    string[] ufDestinoProd = item.UF_DESTINO.Split('|');
 
-                                        _log.Error(e.InnerException.InnerException.Message);
-                                        return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
+                                    //retira o elemento vazio do array
+                                    ufDestinoProd = ufDestinoProd.Where(a => a != "").ToArray();
+
+                                    //PEGA O CRT E O REGIME TRIBUTARIO DA EMPRESA
+                                    int? crt = empresa.crt;
+                                    int? regime_tributario = empresa.regime_trib;
+
+                                    //PASSAR PELOS DESTINOS PARA PROCURAR OS ITENS NA TABELA DE NCM - se faz necessario pois cada tributacao tem sua origem e destino
+                                    for (int i = 0; i < ufDestinoProd.Count(); i++)
+                                    {
+                                        string dest = ufDestinoProd[i].ToString();
+                                        //BUSCA PELO NCM NA TABELA, PASSANDO O CRT E O REGIME
+                                        TributacaoNCM tribnaNCM = db.TributacaoNCM.Where(x => x.ncm == prodItemNCM && x.UF_Origem == item.UF_ORIGEM && x.UF_Destino == dest && x.CRT == crt && x.Regime_Trib == regime_tributario).FirstOrDefault();
+
+                                        if (tribnaNCM == null) //SE FOR NULLO NAO HA TRIBUTACAO PARA ESSE ITEM NA TABELA
+                                        {
+                                            //MONTAR O MECANISMO PARA SALVAR O ITEM NA TABELA
+                                            TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
+                                            //VERIFICAR A CATEGORIA
+                                            if (item.PRODUTO_CATEGORIA != null)
+                                            {
+                                                prodTribNCMSalvar.categoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
+
+                                            }
+                                            else
+                                            {
+                                                prodTribNCMSalvar.categoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
+                                            }
+
+                                            //ATRIBUIR OS OUTROS DADOS
+                                            prodTribNCMSalvar.UF_Origem = item.UF_ORIGEM;
+                                            prodTribNCMSalvar.UF_Destino = ufDestinoProd[i];
+                                            prodTribNCMSalvar.cest = item.PRODUTO_CEST;
+                                            prodTribNCMSalvar.ncm = item.PRODUTO_NCM;
+                                            prodTribNCMSalvar.auditadoPorNCM = 0;
+                                            prodTribNCMSalvar.CRT = crt;
+                                            prodTribNCMSalvar.Regime_Trib = regime_tributario;
+                                            prodTribNCMSalvar.dataCad = DateTime.Now;
+                                            prodTribNCMSalvar.dataAlt = DateTime.Now;
+
+                                            //TRY CATCH PARA SALVAR O ITEM NA TABELA
+                                            try
+                                            {
+                                                //salvar
+                                                db.TributacaoNCM.Add(prodTribNCMSalvar);//objeto para ser salvo no banco
+                                                db.SaveChanges();
+
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                //erros e mensagens
+                                                if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                {
+
+                                                    _log.Error(e.InnerException.InnerException.Message);
+                                                    return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
+                                                }
+
+                                                if (e.Message != null)
+                                                {
+
+                                                    _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                    return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
+                                                }
+
+                                                return BadRequest("ERRO AO SALVAR PRODUTO");
+                                            }//fim do catch
+
+
+                                        }//FIM DA VERIFICACAO SE VEIO NULO A CONSULTA
+
+
+                                    }//FIM DO FOR PARA BUSCAR NA TABELA DE TRIBUTACAO POR NCM
+                                     //contar os que vieram com codigo de barras 0
+                                    if (item.PRODUTO_COD_BARRAS == "0")
+                                    {
+                                        prodZerado++;
                                     }
 
-                                    if (e.Message != null)
+                                    //Verificar em todos os destinos se o item foi tributado no cliente
+                                    string[] ufDestino = item.UF_DESTINO.Split('|');
+                                    //retira o elemento vazio do array deixando somente os id dos registros
+                                    ufDestino = ufDestino.Where(a => a != "").ToArray();
+                                    for (int i = 0; i < ufDestino.Count(); i++)
                                     {
+                                        string dest = ufDestino[i].ToString();
+                                        //where: where com o codigo de barras do produto e cnpj
+                                        /*aqui ele verifica se o produto ja contem no cnpj informado*/
+                                        tribEmpresas2 = tribEmpresas2.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest));
 
-                                        _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                        return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
+                                        //se vier algo da consulta acima: se vier 0 ELE VAI SALVAR O ITEM NA TABELA DO CLIENTE
+                                        if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
+                                        {
+                                            TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                            //atribunido dados ao objeto
+                                            itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
+                                            itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
+                                            itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
+                                            itemSalvar.PRODUTO_DESCRICAO = item.PRODUTO_DESCRICAO;
+                                            itemSalvar.PRODUTO_CEST = item.PRODUTO_CEST;
+                                            itemSalvar.PRODUTO_NCM = item.PRODUTO_NCM;
+                                            itemSalvar.PRODUTO_CATEGORIA = item.PRODUTO_CATEGORIA;/*Ponto a analisar, pois vem do cliente descrição*/
+                                            itemSalvar.FECP = item.FECP;
+                                            itemSalvar.COD_NAT_RECEITA = item.COD_NAT_RECEITA;
+                                            itemSalvar.CST_ENTRADA_PIS_COFINS = item.CST_ENTRADA_PIS_COFINS;
+                                            itemSalvar.CST_SAIDA_PIS_COFINS = item.CST_SAIDA_PIS_COFINS;
+                                            itemSalvar.ALIQ_ENTRADA_PIS = item.ALIQ_ENTRADA_PIS;
+                                            itemSalvar.ALIQ_SAIDA_PIS = item.ALIQ_ENTRADA_PIS;
+                                            itemSalvar.ALIQ_ENTRADA_COFINS = item.ALIQ_ENTRADA_COFINS;
+                                            itemSalvar.ALIQ_SAIDA_COFINS = item.ALIQ_SAIDA_COFINS;
+                                            itemSalvar.CST_VENDA_ATA = item.CST_VENDA_ATA;
+                                            itemSalvar.ALIQ_ICMS_VENDA_ATA = item.ALIQ_ICMS_VENDA_ATA;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = item.ALIQ_ICMS_ST_VENDA_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = item.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+                                            itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = item.CST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.CST_VENDA_VAREJO_CONT = item.CST_VENDA_VAREJO_CONT;
+                                            itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = item.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONT = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONT;
+                                            itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = item.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                            itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+                                            itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = item.CST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.CST_COMPRA_DE_IND = item.CST_COMPRA_DE_IND;
+                                            itemSalvar.ALIQ_ICMS_COMP_DE_IND = item.ALIQ_ICMS_COMP_DE_IND;
+                                            itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = item.ALIQ_ICMS_ST_COMP_DE_IND;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+                                            itemSalvar.CST_COMPRA_DE_ATA = item.CST_COMPRA_DE_ATA;
+                                            itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = item.ALIQ_ICMS_COMPRA_DE_ATA;
+                                            itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = item.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+                                            itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = item.CST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.CST_DA_NFE_DA_IND_FORN = item.CST_DA_NFE_DA_IND_FORN;
+                                            itemSalvar.CST_DA_NFE_DE_ATA_FORN = item.CST_DA_NFE_DE_ATA_FORN;
+                                            itemSalvar.CSOSNT_DANFE_DOS_NFOR = item.CSOSNT_DANFE_DOS_NFOR;
+                                            itemSalvar.ALIQ_ICMS_NFE = item.ALIQ_ICMS_NFE;
+                                            itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = item.ALIQ_ICMS_NFE_FOR_ATA;
+                                            itemSalvar.ALIQ_ICMS_NFE_FOR_SN = item.ALIQ_ICMS_NFE_FOR_SN;
+                                            itemSalvar.TIPO_MVA = item.TIPO_MVA;
+                                            itemSalvar.VALOR_MVA_IND = item.VALOR_MVA_IND;
+                                            itemSalvar.INICIO_VIGENCIA_MVA = item.INICIO_VIGENCIA_MVA; //data
+                                            itemSalvar.FIM_VIGENCIA_MVA = item.FIM_VIGENCIA_MVA; //data
+                                            itemSalvar.CREDITO_OUTORGADO = item.CREDITO_OUTORGADO;
+                                            itemSalvar.VALOR_MVA_ATACADO = item.VALOR_MVA_ATACADO;
+                                            itemSalvar.REGIME_2560 = item.REGIME_2560;
+                                            itemSalvar.UF_ORIGEM = item.UF_ORIGEM;
+                                            itemSalvar.UF_DESTINO = ufDestino[i];
+                                            itemSalvar.PRODUTO_COD_INTERNO = item.PRODUTO_COD_INTERNO;
+                                            //data da inclusão/alteração
+                                            itemSalvar.DT_ALTERACAO = DateTime.Now;
+
+
+                                            //Verifica se o item veio ativo, caso venha null considera ativo
+                                            if (item.ATIVO == null)
+                                            {
+                                                itemSalvar.ATIVO = 1;
+                                            }
+                                            else
+                                            {
+                                                itemSalvar.ATIVO = sbyte.Parse(item.ATIVO);
+                                            }
+
+
+
+                                            //try catch para salvar no banco e na lista de retorno
+                                            try
+                                            {
+                                                //salva os itens quando nao existem na tabela
+                                                db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
+                                                bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
+                                                listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
+                                                db.SaveChanges();
+                                                bd.SaveChanges();
+
+
+                                                cont++;
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                //erros e mensagens
+                                                if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                {
+
+                                                    _log.Error(e.InnerException.InnerException.Message);
+                                                    return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                }
+
+                                                if (e.Message != null)
+                                                {
+
+                                                    _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                    return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                }
+
+                                                return BadRequest("ERRO AO SALVAR ITEM");
+                                            }//fim do catch
+
+                                        }
+                                        else//SE O PRODUTO EXISTIR, ELE VAI SER ALTERADO NA ESTRUTURA ABAIXO
+                                        {
+                                            //se ele nao existir na tabela do cliente ele dever ser importado
+                                            //se o codigo de barras não foi importado o entra na condição, ou seja o retorno do tribempresas2 é 0
+                                            //sendo zero o produto nao foi importado, agora ele será com todos os seus dados
+                                            //alteração 16092021->alem de nao ter encontrado nada no banco, count=0 o codigo de barras deve ser diferente de 0(zero)
+                                            //pegar o id desse registro
+                                            var idDoRegistros = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
+                                            var idDoRegistros2 = bd.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
+
+                                            if (idDoRegistros != 0)
+                                            {
+                                                TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+
+                                                itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
+
+                                                itemSalvar.PRODUTO_DESCRICAO = (itemSalvar.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar.PRODUTO_DESCRICAO) : itemSalvar.PRODUTO_DESCRICAO;
+                                                itemSalvar.PRODUTO_CEST = (itemSalvar.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar.PRODUTO_CEST) : itemSalvar.PRODUTO_CEST;
+                                                itemSalvar.PRODUTO_NCM = (itemSalvar.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar.PRODUTO_NCM) : itemSalvar.PRODUTO_NCM;
+                                                itemSalvar.PRODUTO_CATEGORIA = (itemSalvar.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar.PRODUTO_CATEGORIA) : itemSalvar.PRODUTO_CATEGORIA;
+                                                itemSalvar.FECP = (itemSalvar.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar.FECP) : itemSalvar.FECP;
+                                                itemSalvar.COD_NAT_RECEITA = (itemSalvar.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar.COD_NAT_RECEITA) : itemSalvar.COD_NAT_RECEITA;
+
+                                                itemSalvar.CST_ENTRADA_PIS_COFINS = (itemSalvar.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar.CST_ENTRADA_PIS_COFINS) : itemSalvar.CST_ENTRADA_PIS_COFINS;
+                                                itemSalvar.CST_SAIDA_PIS_COFINS = (itemSalvar.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar.CST_SAIDA_PIS_COFINS) : itemSalvar.CST_SAIDA_PIS_COFINS;
+                                                itemSalvar.ALIQ_ENTRADA_PIS = (itemSalvar.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar.ALIQ_ENTRADA_PIS) : itemSalvar.ALIQ_ENTRADA_PIS;
+                                                itemSalvar.ALIQ_SAIDA_PIS = (itemSalvar.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar.ALIQ_SAIDA_PIS) : itemSalvar.ALIQ_SAIDA_PIS;
+                                                itemSalvar.ALIQ_ENTRADA_COFINS = (itemSalvar.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar.ALIQ_ENTRADA_COFINS) : itemSalvar.ALIQ_ENTRADA_COFINS;
+                                                itemSalvar.ALIQ_SAIDA_COFINS = (itemSalvar.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar.ALIQ_SAIDA_COFINS) : itemSalvar.ALIQ_SAIDA_COFINS;
+
+                                                itemSalvar.CST_VENDA_ATA = (itemSalvar.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar.CST_VENDA_ATA) : itemSalvar.CST_VENDA_ATA;
+                                                itemSalvar.ALIQ_ICMS_VENDA_ATA = (itemSalvar.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar.ALIQ_ICMS_VENDA_ATA) : itemSalvar.ALIQ_ICMS_VENDA_ATA;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+
+                                                itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+
+
+                                                itemSalvar.CST_VENDA_VAREJO_CONT = (itemSalvar.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar.CST_VENDA_VAREJO_CONT) : itemSalvar.CST_VENDA_VAREJO_CONT;
+                                                itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                                itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                                itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+
+
+                                                itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+
+
+                                                itemSalvar.CST_COMPRA_DE_IND = (itemSalvar.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar.CST_COMPRA_DE_IND) : itemSalvar.CST_COMPRA_DE_IND;
+                                                itemSalvar.ALIQ_ICMS_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar.ALIQ_ICMS_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_COMP_DE_IND;
+                                                itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+
+                                                itemSalvar.CST_COMPRA_DE_ATA = (itemSalvar.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar.CST_COMPRA_DE_ATA) : itemSalvar.CST_COMPRA_DE_ATA;
+                                                itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+
+                                                itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+
+
+                                                itemSalvar.CST_DA_NFE_DA_IND_FORN = (itemSalvar.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar.CST_DA_NFE_DA_IND_FORN) : itemSalvar.CST_DA_NFE_DA_IND_FORN;
+                                                itemSalvar.CST_DA_NFE_DE_ATA_FORN = (itemSalvar.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar.CST_DA_NFE_DE_ATA_FORN) : itemSalvar.CST_DA_NFE_DE_ATA_FORN;
+                                                itemSalvar.CSOSNT_DANFE_DOS_NFOR = (itemSalvar.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar.CSOSNT_DANFE_DOS_NFOR) : itemSalvar.CSOSNT_DANFE_DOS_NFOR;
+
+                                                itemSalvar.ALIQ_ICMS_NFE = (itemSalvar.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar.ALIQ_ICMS_NFE) : itemSalvar.ALIQ_ICMS_NFE;
+                                                itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA;
+                                                itemSalvar.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar.ALIQ_ICMS_NFE_FOR_SN;
+
+
+                                                itemSalvar.TIPO_MVA = (itemSalvar.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar.TIPO_MVA) : itemSalvar.TIPO_MVA;
+
+                                                itemSalvar.VALOR_MVA_IND = (itemSalvar.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar.VALOR_MVA_IND) : itemSalvar.VALOR_MVA_IND;
+
+                                                itemSalvar.INICIO_VIGENCIA_MVA = (itemSalvar.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar.INICIO_VIGENCIA_MVA) : itemSalvar.INICIO_VIGENCIA_MVA;
+
+                                                itemSalvar.FIM_VIGENCIA_MVA = (itemSalvar.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar.FIM_VIGENCIA_MVA) : itemSalvar.FIM_VIGENCIA_MVA;
+
+                                                itemSalvar.CREDITO_OUTORGADO = (itemSalvar.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar.CREDITO_OUTORGADO) : itemSalvar.CREDITO_OUTORGADO;
+
+                                                itemSalvar.VALOR_MVA_ATACADO = (itemSalvar.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar.VALOR_MVA_ATACADO) : itemSalvar.VALOR_MVA_ATACADO;
+
+                                                itemSalvar.REGIME_2560 = (itemSalvar.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar.REGIME_2560) : itemSalvar.REGIME_2560;
+
+                                                itemSalvar.UF_ORIGEM = (itemSalvar.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar.UF_ORIGEM) : itemSalvar.UF_ORIGEM;
+
+                                                itemSalvar.UF_DESTINO = (itemSalvar.UF_DESTINO != ufDestino[i]) ? ((item.UF_DESTINO != null) ? item.UF_DESTINO : ufDestino[i]) : itemSalvar.UF_DESTINO;
+
+                                                //data da inclusão/alteração
+                                                itemSalvar.DT_ALTERACAO = DateTime.Now;
+
+
+                                                //segundo banco: SALVAR ALTERAÇÕES NO BANCO DE BKP OU TABELAS INICIAIS DO CLIENTE
+                                                TributacaoEmpresa itemSalvar2 = new TributacaoEmpresa();
+                                                itemSalvar2 = bd.TributacaoEmpresas.Find(idDoRegistros2);
+
+                                                itemSalvar2.PRODUTO_DESCRICAO = (itemSalvar2.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar2.PRODUTO_DESCRICAO) : itemSalvar2.PRODUTO_DESCRICAO;
+                                                itemSalvar2.PRODUTO_CEST = (itemSalvar2.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar2.PRODUTO_CEST) : itemSalvar2.PRODUTO_CEST;
+                                                itemSalvar2.PRODUTO_NCM = (itemSalvar2.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar2.PRODUTO_NCM) : itemSalvar2.PRODUTO_NCM;
+                                                itemSalvar2.PRODUTO_CATEGORIA = (itemSalvar2.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar2.PRODUTO_CATEGORIA) : itemSalvar2.PRODUTO_CATEGORIA;
+                                                itemSalvar2.FECP = (itemSalvar2.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar2.FECP) : itemSalvar2.FECP;
+                                                itemSalvar2.COD_NAT_RECEITA = (itemSalvar2.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar2.COD_NAT_RECEITA) : itemSalvar2.COD_NAT_RECEITA;
+
+                                                itemSalvar2.CST_ENTRADA_PIS_COFINS = (itemSalvar2.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar2.CST_ENTRADA_PIS_COFINS) : itemSalvar2.CST_ENTRADA_PIS_COFINS;
+                                                itemSalvar2.CST_SAIDA_PIS_COFINS = (itemSalvar2.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar2.CST_SAIDA_PIS_COFINS) : itemSalvar2.CST_SAIDA_PIS_COFINS;
+                                                itemSalvar2.ALIQ_ENTRADA_PIS = (itemSalvar2.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar2.ALIQ_ENTRADA_PIS) : itemSalvar2.ALIQ_ENTRADA_PIS;
+                                                itemSalvar2.ALIQ_SAIDA_PIS = (itemSalvar2.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar2.ALIQ_SAIDA_PIS) : itemSalvar2.ALIQ_SAIDA_PIS;
+                                                itemSalvar2.ALIQ_ENTRADA_COFINS = (itemSalvar2.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar2.ALIQ_ENTRADA_COFINS) : itemSalvar2.ALIQ_ENTRADA_COFINS;
+                                                itemSalvar2.ALIQ_SAIDA_COFINS = (itemSalvar2.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar2.ALIQ_SAIDA_COFINS) : itemSalvar2.ALIQ_SAIDA_COFINS;
+
+                                                itemSalvar2.CST_VENDA_ATA = (itemSalvar2.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar2.CST_VENDA_ATA) : itemSalvar2.CST_VENDA_ATA;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_ATA = (itemSalvar2.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar2.ALIQ_ICMS_VENDA_ATA) : itemSalvar2.ALIQ_ICMS_VENDA_ATA;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+
+                                                itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+
+
+                                                itemSalvar2.CST_VENDA_VAREJO_CONT = (itemSalvar2.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar2.CST_VENDA_VAREJO_CONT) : itemSalvar2.CST_VENDA_VAREJO_CONT;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                                itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                                itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+
+
+                                                itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+
+
+                                                itemSalvar2.CST_COMPRA_DE_IND = (itemSalvar2.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar2.CST_COMPRA_DE_IND) : itemSalvar2.CST_COMPRA_DE_IND;
+                                                itemSalvar2.ALIQ_ICMS_COMP_DE_IND = (itemSalvar2.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar2.ALIQ_ICMS_COMP_DE_IND) : itemSalvar2.ALIQ_ICMS_COMP_DE_IND;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+
+                                                itemSalvar2.CST_COMPRA_DE_ATA = (itemSalvar2.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar2.CST_COMPRA_DE_ATA) : itemSalvar2.CST_COMPRA_DE_ATA;
+                                                itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+
+                                                itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+
+
+                                                itemSalvar2.CST_DA_NFE_DA_IND_FORN = (itemSalvar2.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar2.CST_DA_NFE_DA_IND_FORN) : itemSalvar2.CST_DA_NFE_DA_IND_FORN;
+                                                itemSalvar2.CST_DA_NFE_DE_ATA_FORN = (itemSalvar2.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar2.CST_DA_NFE_DE_ATA_FORN) : itemSalvar2.CST_DA_NFE_DE_ATA_FORN;
+                                                itemSalvar2.CSOSNT_DANFE_DOS_NFOR = (itemSalvar2.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar2.CSOSNT_DANFE_DOS_NFOR) : itemSalvar2.CSOSNT_DANFE_DOS_NFOR;
+
+                                                itemSalvar2.ALIQ_ICMS_NFE = (itemSalvar2.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar2.ALIQ_ICMS_NFE) : itemSalvar2.ALIQ_ICMS_NFE;
+                                                itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA;
+                                                itemSalvar2.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar2.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar2.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar2.ALIQ_ICMS_NFE_FOR_SN;
+
+
+                                                itemSalvar2.TIPO_MVA = (itemSalvar2.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar2.TIPO_MVA) : itemSalvar2.TIPO_MVA;
+
+                                                itemSalvar2.VALOR_MVA_IND = (itemSalvar2.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar2.VALOR_MVA_IND) : itemSalvar2.VALOR_MVA_IND;
+
+                                                itemSalvar2.INICIO_VIGENCIA_MVA = (itemSalvar2.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar2.INICIO_VIGENCIA_MVA) : itemSalvar2.INICIO_VIGENCIA_MVA;
+
+                                                itemSalvar2.FIM_VIGENCIA_MVA = (itemSalvar2.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar2.FIM_VIGENCIA_MVA) : itemSalvar2.FIM_VIGENCIA_MVA;
+
+                                                itemSalvar2.CREDITO_OUTORGADO = (itemSalvar2.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar2.CREDITO_OUTORGADO) : itemSalvar2.CREDITO_OUTORGADO;
+
+                                                itemSalvar2.VALOR_MVA_ATACADO = (itemSalvar2.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar2.VALOR_MVA_ATACADO) : itemSalvar2.VALOR_MVA_ATACADO;
+
+                                                itemSalvar2.REGIME_2560 = (itemSalvar2.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar2.REGIME_2560) : itemSalvar2.REGIME_2560;
+
+                                                itemSalvar2.UF_ORIGEM = (itemSalvar2.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar2.UF_ORIGEM) : itemSalvar2.UF_ORIGEM;
+
+                                                itemSalvar2.UF_DESTINO = (itemSalvar2.UF_DESTINO != ufDestino[i]) ? ((item.UF_DESTINO != null) ? item.UF_DESTINO : ufDestino[i]) : itemSalvar2.UF_DESTINO;
+
+                                                //data da inclusão/alteração
+                                                itemSalvar2.DT_ALTERACAO = DateTime.Now;
+
+
+                                                //try catch para salvar no banco e na lista de retorno
+                                                try
+                                                {
+                                                    //COLOCA NA LISTA PARA RETORNO
+                                                    listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
+                                                    db.SaveChanges(); //SALVAR AS ALTERACOES
+                                                    bd.SaveChanges();
+
+                                                    contAlterados++;
+                                                }
+                                                catch (Exception e)
+                                                {
+                                                    //erros e mensagens
+                                                    if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                    {
+
+                                                        _log.Error(e.InnerException.InnerException.Message);
+                                                        return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                    }
+
+                                                    if (e.Message != null)
+                                                    {
+
+                                                        _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                        return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                    }
+
+                                                    return BadRequest("ERRO AO SALVAR ITEM");
+                                                }//fim do catch
+
+                                            }//se o registro veio diferente de 0, DEVE SER ALTERADO
+
+
+                                        }   //FIM DO ELSE PRODUTO JA CADASTRADO
+
+
                                     }
 
-                                    return BadRequest("ERRO AO SALVAR PRODUTO");
-                                }//fim do catch
 
-
-
-                            }
-                            //VERIFICAR SE HA TRIBUTAÇÃO PARA O PRODUTO DEPENDENDO DA EMPRESA (SIMPLES OU NORMAL)
-                            if (cadProd == null)
-                            {
-                                cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado == codBarrasGerado).FirstOrDefault();
-                            }
-
-                           
-
-                            /*Salvar na tabela TributacaoNCM, caso nao exista*/
-                            string prodItemNCM = item.PRODUTO_NCM; //PEGA O NCM DO ITEM
-
-                            string[] ufDestinoTNCM = item.UF_DESTINO.Split('|');
-
-                            //PEGA O CRT E O REGIME TRIBUTARIO DA EMPRESA
-                            int? crt = empresa.crt;
-                            int? regime_tributario = empresa.regime_trib;
-
-                            //retira o elemento vazio do array
-                            ufDestinoTNCM = ufDestinoTNCM.Where(a => a != "").ToArray();
-
-                            //PASSAR PELOS DESTINOS PARA PROCURAR OS ITENS NA TABELA DE NCM - se faz necessario pois cada tributacao tem sua origem e destino
-                            for (int i = 0; i < ufDestinoTNCM.Count(); i++)
-                            {
-                                string dest = ufDestinoTNCM[i].ToString();
-                                 //BUSCA PELO NCM NA TABELA, PASSANDO O CRT E O REGIME
-                                TributacaoNCM tribnaNCM = db.TributacaoNCM.Where(x => x.ncm == prodItemNCM && x.UF_Origem == item.UF_ORIGEM && x.UF_Destino == dest && x.CRT == crt && x.Regime_Trib == regime_tributario).FirstOrDefault();
-                                if (tribnaNCM == null)
+                                }
+                                else//SE O CODIGO DE BARRAS VIER MENR QUE 7
                                 {
-
-                                    TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
-
-                                    if (item.PRODUTO_CATEGORIA != null)
+                                    /*Implementar busca pela categoria e verificar se a categoria que vem do cliente
+                                    existe na tabela de categoria da matriz*/
+                                    //pegou o ID da categoria
+                                    var categoriaProd = (from ab in db.CategoriasProdutos where item.PRODUTO_CATEGORIA == ab.descricao select ab.id).FirstOrDefault();
+                                    //Se houver a categoria ele atribui ao item e continua, caso não tenha ele atribui nullo e continua
+                                    /*Isso se deve ao fato que o cliente pode haver mais categorias e/ou categorias diferentes
+                                     o que não é relevante para analise, por isso atribuimos nulla caso seja diferente ou inexistente
+                                    na tabela da matriz*/
+                                    if (categoriaProd > 0)
                                     {
-                                        prodTribNCMSalvar.categoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
-
+                                        item.PRODUTO_CATEGORIA = categoriaProd.ToString();
                                     }
                                     else
                                     {
-                                        prodTribNCMSalvar.categoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
+                                        item.PRODUTO_CATEGORIA = null;
                                     }
 
+                                    /*ROTINA PARA VERIFICAR SE O PRODUTO ESTÁ CADASTRADO E TRIBUTADO NA TABELA MATRIZ*/
 
-                                    prodTribNCMSalvar.UF_Origem = item.UF_ORIGEM;
-                                    prodTribNCMSalvar.UF_Destino = ufDestinoTNCM[i];
-                                    prodTribNCMSalvar.cest = item.PRODUTO_CEST;
-                                    prodTribNCMSalvar.ncm = item.PRODUTO_NCM;
-                                    prodTribNCMSalvar.auditadoPorNCM = 0;
-                                    prodTribNCMSalvar.CRT = crt;
-                                    prodTribNCMSalvar.Regime_Trib = regime_tributario;
-                                    prodTribNCMSalvar.dataCad = DateTime.Now;
-                                    prodTribNCMSalvar.dataAlt = DateTime.Now;
+                                    long? prodItem = long.Parse(item.PRODUTO_COD_BARRAS); //passa para long
 
-                                    try
+                                    Produto cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado.Equals(codBarrasGerado.ToString())).FirstOrDefault(); //verifica o cadastro
+
+
+                                    Produto prodSalvar = new Produto();
+
+                                    //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
+                                    if (cadProd == null)
                                     {
 
-                                        db.TributacaoNCM.Add(prodTribNCMSalvar);//objeto para ser salvo no banco
-                                        db.SaveChanges();
+                                        prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
+                                        prodSalvar.CodBarrasGErado = codBarrasGerado;
+                                        prodSalvar.descricao = item.PRODUTO_DESCRICAO;
+                                        prodSalvar.cest = item.PRODUTO_CEST;
+                                        prodSalvar.ncm = item.PRODUTO_NCM;
 
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        //erros e mensagens
-                                        if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                        if (item.PRODUTO_CATEGORIA != null)
                                         {
+                                            prodSalvar.idCategoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
 
-                                            _log.Error(e.InnerException.InnerException.Message);
-                                            return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
+                                        }
+                                        else
+                                        {
+                                            prodSalvar.idCategoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
                                         }
 
-                                        if (e.Message != null)
-                                        {
+                                        prodSalvar.status = 1;
+                                        prodSalvar.dataCad = DateTime.Now;
+                                        prodSalvar.dataAlt = DateTime.Now;
+                                        prodSalvar.auditadoNCM = 0; //nao auditado
 
-                                            _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                            return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
-                                        }
-
-                                        return BadRequest("ERRO AO SALVAR PRODUTO");
-                                    }//fim do catch
-
-                                }
-
-                                
-
-                            }//FIM DO FOR PASSAR PELOS DESTINOS
-                             //contar os que vieram com codigo de barras 0
-                            if (item.PRODUTO_COD_BARRAS == "0")
-                            {
-                                prodZerado++;
-                            }
-                            //NA TABELA DO CLIENTE (CONTEXTO GTIN MENOR QUE 7
-                            //Verificar em todos os destinos se o item foi tributado no cliente
-                            string[] ufDestinoE = item.UF_DESTINO.Split('|');
-                            //retira o elemento vazio do array deixando somente os id dos registros
-                            ufDestinoE = ufDestinoE.Where(a => a != "").ToArray();
-
-
-                            for (int i = 0; i < ufDestinoE.Count(); i++)
-                            {
-                                string dest = ufDestinoE[i].ToString();
-
-                                var tribEmpresas2 = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID != 0); //select na tabela
-
-                              
-                                
-                                int contnumb = tribEmpresas2.Count();
-                                if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
-                                {
-                                    TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                    //atribunido dados ao objeto
-                                    itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
-                                    itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
-                                    itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
-                                    itemSalvar.PRODUTO_DESCRICAO = item.PRODUTO_DESCRICAO;
-                                    itemSalvar.PRODUTO_CEST = item.PRODUTO_CEST;
-                                    itemSalvar.PRODUTO_NCM = item.PRODUTO_NCM;
-                                    itemSalvar.PRODUTO_CATEGORIA = item.PRODUTO_CATEGORIA;/*Ponto a analisar, pois vem do cliente descrição*/
-                                    itemSalvar.FECP = item.FECP;
-                                    itemSalvar.COD_NAT_RECEITA = item.COD_NAT_RECEITA;
-                                    itemSalvar.CST_ENTRADA_PIS_COFINS = item.CST_ENTRADA_PIS_COFINS;
-                                    itemSalvar.CST_SAIDA_PIS_COFINS = item.CST_SAIDA_PIS_COFINS;
-                                    itemSalvar.ALIQ_ENTRADA_PIS = item.ALIQ_ENTRADA_PIS;
-                                    itemSalvar.ALIQ_SAIDA_PIS = item.ALIQ_ENTRADA_PIS;
-                                    itemSalvar.ALIQ_ENTRADA_COFINS = item.ALIQ_ENTRADA_COFINS;
-                                    itemSalvar.ALIQ_SAIDA_COFINS = item.ALIQ_SAIDA_COFINS;
-                                    itemSalvar.CST_VENDA_ATA = item.CST_VENDA_ATA;
-                                    itemSalvar.ALIQ_ICMS_VENDA_ATA = item.ALIQ_ICMS_VENDA_ATA;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = item.ALIQ_ICMS_ST_VENDA_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = item.RED_BASE_CALC_ICMS_VENDA_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
-                                    itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = item.CST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                    itemSalvar.CST_VENDA_VAREJO_CONT = item.CST_VENDA_VAREJO_CONT;
-                                    itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = item.ALIQ_ICMS_VENDA_VAREJO_CONT;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONT = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONT;
-                                    itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = item.RED_BASE_CALC_VENDA_VAREJO_CONT;
-                                    itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
-                                    itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = item.CST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                    itemSalvar.CST_COMPRA_DE_IND = item.CST_COMPRA_DE_IND;
-                                    itemSalvar.ALIQ_ICMS_COMP_DE_IND = item.ALIQ_ICMS_COMP_DE_IND;
-                                    itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = item.ALIQ_ICMS_ST_COMP_DE_IND;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
-                                    itemSalvar.CST_COMPRA_DE_ATA = item.CST_COMPRA_DE_ATA;
-                                    itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = item.ALIQ_ICMS_COMPRA_DE_ATA;
-                                    itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = item.ALIQ_ICMS_ST_COMPRA_DE_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
-                                    itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = item.CST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
-                                    itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                    itemSalvar.CST_DA_NFE_DA_IND_FORN = item.CST_DA_NFE_DA_IND_FORN;
-                                    itemSalvar.CST_DA_NFE_DE_ATA_FORN = item.CST_DA_NFE_DE_ATA_FORN;
-                                    itemSalvar.CSOSNT_DANFE_DOS_NFOR = item.CSOSNT_DANFE_DOS_NFOR;
-                                    itemSalvar.ALIQ_ICMS_NFE = item.ALIQ_ICMS_NFE;
-                                    itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = item.ALIQ_ICMS_NFE_FOR_ATA;
-                                    itemSalvar.ALIQ_ICMS_NFE_FOR_SN = item.ALIQ_ICMS_NFE_FOR_SN;
-                                    itemSalvar.TIPO_MVA = item.TIPO_MVA;
-                                    itemSalvar.VALOR_MVA_IND = item.VALOR_MVA_IND;
-                                    itemSalvar.INICIO_VIGENCIA_MVA = item.INICIO_VIGENCIA_MVA; //data
-                                    itemSalvar.FIM_VIGENCIA_MVA = item.FIM_VIGENCIA_MVA; //data
-                                    itemSalvar.CREDITO_OUTORGADO = item.CREDITO_OUTORGADO;
-                                    itemSalvar.VALOR_MVA_ATACADO = item.VALOR_MVA_ATACADO;
-                                    itemSalvar.REGIME_2560 = item.REGIME_2560;
-                                    itemSalvar.UF_ORIGEM = item.UF_ORIGEM;
-                                    itemSalvar.UF_DESTINO = ufDestinoE[i];
-                                    itemSalvar.PRODUTO_COD_INTERNO = item.PRODUTO_COD_INTERNO;
-                                    //data da inclusão/alteração
-                                    itemSalvar.DT_ALTERACAO = DateTime.Now;
-                                    //Verifica se o item veio ativo, caso venha null considera ativo
-                                    if (item.ATIVO == null)
-                                    {
-                                        itemSalvar.ATIVO = 1;
-                                    }
-                                    else
-                                    {
-                                        itemSalvar.ATIVO = sbyte.Parse(item.ATIVO);
-                                    }
-
-
-
-                                    //try catch para salvar no banco e na lista de retorno
-                                    try
-                                    {
-
-                                        db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
-                                        bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
-                                        listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
-                                        db.SaveChanges();
-
-                                        cont++;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        //erros e mensagens
-                                        if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
-                                        {
-
-                                            _log.Error(e.InnerException.InnerException.Message);
-                                            return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
-                                        }
-
-                                        if (e.Message != null)
-                                        {
-
-                                            _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                            return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
-                                        }
-
-                                        return BadRequest("ERRO AO SALVAR ITEM");
-                                    }//fim do catch
-
-
-
-                                }
-                                else //se nao foi importado incluir na tabela do cliente
-                                {
-                                    //se o codigo de barras não foi importado o entra na condição, ou seja o retorno do tribempresas2 é 0
-                                    //sendo zero o produto nao foi importado, agora ele será com todos os seus dados
-                                    //alteração 16092021->alem de nao ter encontrado nada no banco, count=0 o codigo de barras deve ser diferente de 0(zero)
-                                    //pegar o id desse registro
-                                    var idDoRegistros = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
-                                    if (idDoRegistros != 0)
-                                    {
-                                        TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
-                                        itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
-                                        itemSalvar.PRODUTO_DESCRICAO = (itemSalvar.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar.PRODUTO_DESCRICAO) : itemSalvar.PRODUTO_DESCRICAO;
-                                        itemSalvar.PRODUTO_CEST = (itemSalvar.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar.PRODUTO_CEST) : itemSalvar.PRODUTO_CEST;
-                                        itemSalvar.PRODUTO_NCM = (itemSalvar.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar.PRODUTO_NCM) : itemSalvar.PRODUTO_NCM;
-                                        itemSalvar.PRODUTO_CATEGORIA = (itemSalvar.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar.PRODUTO_CATEGORIA) : itemSalvar.PRODUTO_CATEGORIA;
-                                        itemSalvar.FECP = (itemSalvar.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar.FECP) : itemSalvar.FECP;
-                                        itemSalvar.COD_NAT_RECEITA = (itemSalvar.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar.COD_NAT_RECEITA) : itemSalvar.COD_NAT_RECEITA;
-
-                                        itemSalvar.CST_ENTRADA_PIS_COFINS = (itemSalvar.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar.CST_ENTRADA_PIS_COFINS) : itemSalvar.CST_ENTRADA_PIS_COFINS;
-                                        itemSalvar.CST_SAIDA_PIS_COFINS = (itemSalvar.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar.CST_SAIDA_PIS_COFINS) : itemSalvar.CST_SAIDA_PIS_COFINS;
-                                        itemSalvar.ALIQ_ENTRADA_PIS = (itemSalvar.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar.ALIQ_ENTRADA_PIS) : itemSalvar.ALIQ_ENTRADA_PIS;
-                                        itemSalvar.ALIQ_SAIDA_PIS = (itemSalvar.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar.ALIQ_SAIDA_PIS) : itemSalvar.ALIQ_SAIDA_PIS;
-                                        itemSalvar.ALIQ_ENTRADA_COFINS = (itemSalvar.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar.ALIQ_ENTRADA_COFINS) : itemSalvar.ALIQ_ENTRADA_COFINS;
-                                        itemSalvar.ALIQ_SAIDA_COFINS = (itemSalvar.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar.ALIQ_SAIDA_COFINS) : itemSalvar.ALIQ_SAIDA_COFINS;
-
-                                        itemSalvar.CST_VENDA_ATA = (itemSalvar.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar.CST_VENDA_ATA) : itemSalvar.CST_VENDA_ATA;
-                                        itemSalvar.ALIQ_ICMS_VENDA_ATA = (itemSalvar.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar.ALIQ_ICMS_VENDA_ATA) : itemSalvar.ALIQ_ICMS_VENDA_ATA;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
-
-                                        itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
-
-
-                                        itemSalvar.CST_VENDA_VAREJO_CONT = (itemSalvar.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar.CST_VENDA_VAREJO_CONT) : itemSalvar.CST_VENDA_VAREJO_CONT;
-                                        itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT;
-                                        itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT;
-                                        itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
-
-
-                                        itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
-
-
-                                        itemSalvar.CST_COMPRA_DE_IND = (itemSalvar.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar.CST_COMPRA_DE_IND) : itemSalvar.CST_COMPRA_DE_IND;
-                                        itemSalvar.ALIQ_ICMS_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar.ALIQ_ICMS_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_COMP_DE_IND;
-                                        itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
-
-                                        itemSalvar.CST_COMPRA_DE_ATA = (itemSalvar.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar.CST_COMPRA_DE_ATA) : itemSalvar.CST_COMPRA_DE_ATA;
-                                        itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA;
-                                        itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
-
-                                        itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
-                                        itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
-
-
-                                        itemSalvar.CST_DA_NFE_DA_IND_FORN = (itemSalvar.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar.CST_DA_NFE_DA_IND_FORN) : itemSalvar.CST_DA_NFE_DA_IND_FORN;
-                                        itemSalvar.CST_DA_NFE_DE_ATA_FORN = (itemSalvar.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar.CST_DA_NFE_DE_ATA_FORN) : itemSalvar.CST_DA_NFE_DE_ATA_FORN;
-                                        itemSalvar.CSOSNT_DANFE_DOS_NFOR = (itemSalvar.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar.CSOSNT_DANFE_DOS_NFOR) : itemSalvar.CSOSNT_DANFE_DOS_NFOR;
-
-                                        itemSalvar.ALIQ_ICMS_NFE = (itemSalvar.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar.ALIQ_ICMS_NFE) : itemSalvar.ALIQ_ICMS_NFE;
-                                        itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA;
-                                        itemSalvar.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar.ALIQ_ICMS_NFE_FOR_SN;
-
-
-                                        itemSalvar.TIPO_MVA = (itemSalvar.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar.TIPO_MVA) : itemSalvar.TIPO_MVA;
-
-                                        itemSalvar.VALOR_MVA_IND = (itemSalvar.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar.VALOR_MVA_IND) : itemSalvar.VALOR_MVA_IND;
-
-                                        itemSalvar.INICIO_VIGENCIA_MVA = (itemSalvar.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar.INICIO_VIGENCIA_MVA) : itemSalvar.INICIO_VIGENCIA_MVA;
-
-                                        itemSalvar.FIM_VIGENCIA_MVA = (itemSalvar.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar.FIM_VIGENCIA_MVA) : itemSalvar.FIM_VIGENCIA_MVA;
-
-                                        itemSalvar.CREDITO_OUTORGADO = (itemSalvar.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar.CREDITO_OUTORGADO) : itemSalvar.CREDITO_OUTORGADO;
-
-                                        itemSalvar.VALOR_MVA_ATACADO = (itemSalvar.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar.VALOR_MVA_ATACADO) : itemSalvar.VALOR_MVA_ATACADO;
-
-                                        itemSalvar.REGIME_2560 = (itemSalvar.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar.REGIME_2560) : itemSalvar.REGIME_2560;
-
-                                        itemSalvar.UF_ORIGEM = (itemSalvar.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar.UF_ORIGEM) : itemSalvar.UF_ORIGEM;
-
-                                        itemSalvar.UF_DESTINO = (itemSalvar.UF_DESTINO != ufDestinoE[i]) ? ((item.UF_DESTINO != null) ? ufDestinoE[i] : itemSalvar.UF_DESTINO) : itemSalvar.UF_DESTINO;
-
-                                        //data da inclusão/alteração
-                                        itemSalvar.DT_ALTERACAO = DateTime.Now;
-                                        //try catch para salvar no banco e na lista de retorno
+                                        //try-catch para salvar o produto na tabela
                                         try
                                         {
 
-                                            //db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
-                                            listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
-                                            db.SaveChanges(); //SALVAR AS ALTERACOES
-                                            contAlterados++;
+                                            db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
+                                            bd.Produtos.Add(prodSalvar);//objeto para ser salvo no banco de comparação
+                                            db.SaveChanges();
+
+                                            contProdSalvos++;
                                         }
                                         catch (Exception e)
                                         {
@@ -1132,35 +877,498 @@ namespace MtxApi.Controllers
                                             {
 
                                                 _log.Error(e.InnerException.InnerException.Message);
-                                                return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
                                             }
 
                                             if (e.Message != null)
                                             {
 
                                                 _log.Error("ERRO AO SALVAR itemRec " + e.Message);
-                                                return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
                                             }
 
-                                            return BadRequest("ERRO AO SALVAR ITEM");
+                                            return BadRequest("ERRO AO SALVAR PRODUTO");
                                         }//fim do catch
+
+
+
                                     }
-                                }
+                                    //VERIFICAR SE HA TRIBUTAÇÃO PARA O PRODUTO DEPENDENDO DA EMPRESA (SIMPLES OU NORMAL)
+                                    if (cadProd == null)
+                                    {
+                                        cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado == codBarrasGerado).FirstOrDefault();
+                                    }
 
-                            }//FIM DO FOR DE DESTINOS
-                            codBarrasTamanho++; //quantidade de produtos que o codigo de barras era menor que 7
-                        }   //fim DO ELSE DE TAMANHO
+
+
+                                    /*Salvar na tabela TributacaoNCM, caso nao exista*/
+                                    string prodItemNCM = item.PRODUTO_NCM; //PEGA O NCM DO ITEM
+
+                                    string[] ufDestinoTNCM = item.UF_DESTINO.Split('|');
+
+                                    //PEGA O CRT E O REGIME TRIBUTARIO DA EMPRESA
+                                    int? crt = empresa.crt;
+                                    int? regime_tributario = empresa.regime_trib;
+
+                                    //retira o elemento vazio do array
+                                    ufDestinoTNCM = ufDestinoTNCM.Where(a => a != "").ToArray();
+
+                                    //PASSAR PELOS DESTINOS PARA PROCURAR OS ITENS NA TABELA DE NCM - se faz necessario pois cada tributacao tem sua origem e destino
+                                    for (int i = 0; i < ufDestinoTNCM.Count(); i++)
+                                    {
+                                        string dest = ufDestinoTNCM[i].ToString();
+                                        //BUSCA PELO NCM NA TABELA, PASSANDO O CRT E O REGIME
+                                        TributacaoNCM tribnaNCM = db.TributacaoNCM.Where(x => x.ncm == prodItemNCM && x.UF_Origem == item.UF_ORIGEM && x.UF_Destino == dest && x.CRT == crt && x.Regime_Trib == regime_tributario).FirstOrDefault();
+                                        if (tribnaNCM == null)
+                                        {
+
+                                            TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
+
+                                            if (item.PRODUTO_CATEGORIA != null)
+                                            {
+                                                prodTribNCMSalvar.categoria = int.Parse(item.PRODUTO_CATEGORIA); //JA VERIFICADO SE HA A CATEGORIA NA TABELA
+
+                                            }
+                                            else
+                                            {
+                                                prodTribNCMSalvar.categoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
+                                            }
+
+
+                                            prodTribNCMSalvar.UF_Origem = item.UF_ORIGEM;
+                                            prodTribNCMSalvar.UF_Destino = ufDestinoTNCM[i];
+                                            prodTribNCMSalvar.cest = item.PRODUTO_CEST;
+                                            prodTribNCMSalvar.ncm = item.PRODUTO_NCM;
+                                            prodTribNCMSalvar.auditadoPorNCM = 0;
+                                            prodTribNCMSalvar.CRT = crt;
+                                            prodTribNCMSalvar.Regime_Trib = regime_tributario;
+                                            prodTribNCMSalvar.dataCad = DateTime.Now;
+                                            prodTribNCMSalvar.dataAlt = DateTime.Now;
+
+                                            try
+                                            {
+
+                                                db.TributacaoNCM.Add(prodTribNCMSalvar);//objeto para ser salvo no banco
+                                                db.SaveChanges();
+
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                //erros e mensagens
+                                                if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                {
+
+                                                    _log.Error(e.InnerException.InnerException.Message);
+                                                    return BadRequest("ERRO AO SALVAR PRODUTO: " + e.InnerException.InnerException.Message);
+                                                }
+
+                                                if (e.Message != null)
+                                                {
+
+                                                    _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                    return BadRequest("ERRO AO SALVAR PRODUTO: " + e.Message);
+                                                }
+
+                                                return BadRequest("ERRO AO SALVAR PRODUTO");
+                                            }//fim do catch
+
+                                        }
 
 
 
+                                    }//FIM DO FOR PASSAR PELOS DESTINOS
+                                     //contar os que vieram com codigo de barras 0
+                                    if (item.PRODUTO_COD_BARRAS == "0")
+                                    {
+                                        prodZerado++;
+                                    }
+                                    //NA TABELA DO CLIENTE (CONTEXTO GTIN MENOR QUE 7
+                                    //Verificar em todos os destinos se o item foi tributado no cliente
+                                    string[] ufDestinoE = item.UF_DESTINO.Split('|');
+                                    //retira o elemento vazio do array deixando somente os id dos registros
+                                    ufDestinoE = ufDestinoE.Where(a => a != "").ToArray();
+
+
+                                    for (int i = 0; i < ufDestinoE.Count(); i++)
+                                    {
+                                        string dest = ufDestinoE[i].ToString();
+
+                                        var tribEmpresas2 = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID != 0); //select na tabela
+
+
+
+                                        int contnumb = tribEmpresas2.Count();
+                                        if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
+                                        {
+                                            TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                            //atribunido dados ao objeto
+                                            itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
+                                            itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
+                                            itemSalvar.COD_BARRAS_GERADO = codBarrasGerado;
+                                            itemSalvar.PRODUTO_DESCRICAO = item.PRODUTO_DESCRICAO;
+                                            itemSalvar.PRODUTO_CEST = item.PRODUTO_CEST;
+                                            itemSalvar.PRODUTO_NCM = item.PRODUTO_NCM;
+                                            itemSalvar.PRODUTO_CATEGORIA = item.PRODUTO_CATEGORIA;/*Ponto a analisar, pois vem do cliente descrição*/
+                                            itemSalvar.FECP = item.FECP;
+                                            itemSalvar.COD_NAT_RECEITA = item.COD_NAT_RECEITA;
+                                            itemSalvar.CST_ENTRADA_PIS_COFINS = item.CST_ENTRADA_PIS_COFINS;
+                                            itemSalvar.CST_SAIDA_PIS_COFINS = item.CST_SAIDA_PIS_COFINS;
+                                            itemSalvar.ALIQ_ENTRADA_PIS = item.ALIQ_ENTRADA_PIS;
+                                            itemSalvar.ALIQ_SAIDA_PIS = item.ALIQ_ENTRADA_PIS;
+                                            itemSalvar.ALIQ_ENTRADA_COFINS = item.ALIQ_ENTRADA_COFINS;
+                                            itemSalvar.ALIQ_SAIDA_COFINS = item.ALIQ_SAIDA_COFINS;
+                                            itemSalvar.CST_VENDA_ATA = item.CST_VENDA_ATA;
+                                            itemSalvar.ALIQ_ICMS_VENDA_ATA = item.ALIQ_ICMS_VENDA_ATA;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = item.ALIQ_ICMS_ST_VENDA_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = item.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+                                            itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = item.CST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                            itemSalvar.CST_VENDA_VAREJO_CONT = item.CST_VENDA_VAREJO_CONT;
+                                            itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = item.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONT = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONT;
+                                            itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = item.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                            itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+                                            itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = item.CST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                            itemSalvar.CST_COMPRA_DE_IND = item.CST_COMPRA_DE_IND;
+                                            itemSalvar.ALIQ_ICMS_COMP_DE_IND = item.ALIQ_ICMS_COMP_DE_IND;
+                                            itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = item.ALIQ_ICMS_ST_COMP_DE_IND;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+                                            itemSalvar.CST_COMPRA_DE_ATA = item.CST_COMPRA_DE_ATA;
+                                            itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = item.ALIQ_ICMS_COMPRA_DE_ATA;
+                                            itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = item.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+                                            itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = item.CST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                            itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                            itemSalvar.CST_DA_NFE_DA_IND_FORN = item.CST_DA_NFE_DA_IND_FORN;
+                                            itemSalvar.CST_DA_NFE_DE_ATA_FORN = item.CST_DA_NFE_DE_ATA_FORN;
+                                            itemSalvar.CSOSNT_DANFE_DOS_NFOR = item.CSOSNT_DANFE_DOS_NFOR;
+                                            itemSalvar.ALIQ_ICMS_NFE = item.ALIQ_ICMS_NFE;
+                                            itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = item.ALIQ_ICMS_NFE_FOR_ATA;
+                                            itemSalvar.ALIQ_ICMS_NFE_FOR_SN = item.ALIQ_ICMS_NFE_FOR_SN;
+                                            itemSalvar.TIPO_MVA = item.TIPO_MVA;
+                                            itemSalvar.VALOR_MVA_IND = item.VALOR_MVA_IND;
+                                            itemSalvar.INICIO_VIGENCIA_MVA = item.INICIO_VIGENCIA_MVA; //data
+                                            itemSalvar.FIM_VIGENCIA_MVA = item.FIM_VIGENCIA_MVA; //data
+                                            itemSalvar.CREDITO_OUTORGADO = item.CREDITO_OUTORGADO;
+                                            itemSalvar.VALOR_MVA_ATACADO = item.VALOR_MVA_ATACADO;
+                                            itemSalvar.REGIME_2560 = item.REGIME_2560;
+                                            itemSalvar.UF_ORIGEM = item.UF_ORIGEM;
+                                            itemSalvar.UF_DESTINO = ufDestinoE[i];
+                                            itemSalvar.PRODUTO_COD_INTERNO = item.PRODUTO_COD_INTERNO;
+                                            //data da inclusão/alteração
+                                            itemSalvar.DT_ALTERACAO = DateTime.Now;
+                                            //Verifica se o item veio ativo, caso venha null considera ativo
+                                            if (item.ATIVO == null)
+                                            {
+                                                itemSalvar.ATIVO = 1;
+                                            }
+                                            else
+                                            {
+                                                itemSalvar.ATIVO = sbyte.Parse(item.ATIVO);
+                                            }
+
+
+
+                                            //try catch para salvar no banco e na lista de retorno
+                                            try
+                                            {
+                                                //salva os itens quando nao existe na tabela
+                                                db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
+                                                bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
+                                                listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
+                                                db.SaveChanges();
+                                                db.SaveChanges();
+
+                                                cont++;
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                //erros e mensagens
+                                                if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                {
+
+                                                    _log.Error(e.InnerException.InnerException.Message);
+                                                    return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                }
+
+                                                if (e.Message != null)
+                                                {
+
+                                                    _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                    return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                }
+
+                                                return BadRequest("ERRO AO SALVAR ITEM");
+                                            }//fim do catch
+
+
+
+                                        }
+                                        else //se nao foi importado incluir na tabela do cliente
+                                        {
+                                            //se o codigo de barras não foi importado o entra na condição, ou seja o retorno do tribempresas2 é 0
+                                            //sendo zero o produto nao foi importado, agora ele será com todos os seus dados
+                                            //alteração 16092021->alem de nao ter encontrado nada no banco, count=0 o codigo de barras deve ser diferente de 0(zero)
+                                            //pegar o id desse registro
+                                            var idDoRegistros = db.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
+                                            var idDoRegistros2 = bd.TributacaoEmpresas.Where(s => s.PRODUTO_COD_BARRAS.Equals(item.PRODUTO_COD_BARRAS) && s.CNPJ_EMPRESA.Contains(cnpjFormatado) && s.UF_ORIGEM.Equals(item.UF_ORIGEM) && s.UF_DESTINO.Equals(dest)).Select(x => x.ID).FirstOrDefault();
+
+                                            if (idDoRegistros != 0)
+                                            {
+                                                TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                                itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
+                                                itemSalvar.PRODUTO_DESCRICAO = (itemSalvar.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar.PRODUTO_DESCRICAO) : itemSalvar.PRODUTO_DESCRICAO;
+                                                itemSalvar.PRODUTO_CEST = (itemSalvar.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar.PRODUTO_CEST) : itemSalvar.PRODUTO_CEST;
+                                                itemSalvar.PRODUTO_NCM = (itemSalvar.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar.PRODUTO_NCM) : itemSalvar.PRODUTO_NCM;
+                                                itemSalvar.PRODUTO_CATEGORIA = (itemSalvar.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar.PRODUTO_CATEGORIA) : itemSalvar.PRODUTO_CATEGORIA;
+                                                itemSalvar.FECP = (itemSalvar.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar.FECP) : itemSalvar.FECP;
+                                                itemSalvar.COD_NAT_RECEITA = (itemSalvar.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar.COD_NAT_RECEITA) : itemSalvar.COD_NAT_RECEITA;
+
+                                                itemSalvar.CST_ENTRADA_PIS_COFINS = (itemSalvar.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar.CST_ENTRADA_PIS_COFINS) : itemSalvar.CST_ENTRADA_PIS_COFINS;
+                                                itemSalvar.CST_SAIDA_PIS_COFINS = (itemSalvar.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar.CST_SAIDA_PIS_COFINS) : itemSalvar.CST_SAIDA_PIS_COFINS;
+                                                itemSalvar.ALIQ_ENTRADA_PIS = (itemSalvar.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar.ALIQ_ENTRADA_PIS) : itemSalvar.ALIQ_ENTRADA_PIS;
+                                                itemSalvar.ALIQ_SAIDA_PIS = (itemSalvar.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar.ALIQ_SAIDA_PIS) : itemSalvar.ALIQ_SAIDA_PIS;
+                                                itemSalvar.ALIQ_ENTRADA_COFINS = (itemSalvar.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar.ALIQ_ENTRADA_COFINS) : itemSalvar.ALIQ_ENTRADA_COFINS;
+                                                itemSalvar.ALIQ_SAIDA_COFINS = (itemSalvar.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar.ALIQ_SAIDA_COFINS) : itemSalvar.ALIQ_SAIDA_COFINS;
+
+                                                itemSalvar.CST_VENDA_ATA = (itemSalvar.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar.CST_VENDA_ATA) : itemSalvar.CST_VENDA_ATA;
+                                                itemSalvar.ALIQ_ICMS_VENDA_ATA = (itemSalvar.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar.ALIQ_ICMS_VENDA_ATA) : itemSalvar.ALIQ_ICMS_VENDA_ATA;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+
+                                                itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.CST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+
+
+                                                itemSalvar.CST_VENDA_VAREJO_CONT = (itemSalvar.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar.CST_VENDA_VAREJO_CONT) : itemSalvar.CST_VENDA_VAREJO_CONT;
+                                                itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                                itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                                itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+
+
+                                                itemSalvar.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.CST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+
+
+                                                itemSalvar.CST_COMPRA_DE_IND = (itemSalvar.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar.CST_COMPRA_DE_IND) : itemSalvar.CST_COMPRA_DE_IND;
+                                                itemSalvar.ALIQ_ICMS_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar.ALIQ_ICMS_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_COMP_DE_IND;
+                                                itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar.ALIQ_ICMS_ST_COMP_DE_IND;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+
+                                                itemSalvar.CST_COMPRA_DE_ATA = (itemSalvar.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar.CST_COMPRA_DE_ATA) : itemSalvar.CST_COMPRA_DE_ATA;
+                                                itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+
+                                                itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.CST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                                itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+
+
+                                                itemSalvar.CST_DA_NFE_DA_IND_FORN = (itemSalvar.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar.CST_DA_NFE_DA_IND_FORN) : itemSalvar.CST_DA_NFE_DA_IND_FORN;
+                                                itemSalvar.CST_DA_NFE_DE_ATA_FORN = (itemSalvar.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar.CST_DA_NFE_DE_ATA_FORN) : itemSalvar.CST_DA_NFE_DE_ATA_FORN;
+                                                itemSalvar.CSOSNT_DANFE_DOS_NFOR = (itemSalvar.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar.CSOSNT_DANFE_DOS_NFOR) : itemSalvar.CSOSNT_DANFE_DOS_NFOR;
+
+                                                itemSalvar.ALIQ_ICMS_NFE = (itemSalvar.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar.ALIQ_ICMS_NFE) : itemSalvar.ALIQ_ICMS_NFE;
+                                                itemSalvar.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar.ALIQ_ICMS_NFE_FOR_ATA;
+                                                itemSalvar.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar.ALIQ_ICMS_NFE_FOR_SN;
+
+
+                                                itemSalvar.TIPO_MVA = (itemSalvar.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar.TIPO_MVA) : itemSalvar.TIPO_MVA;
+
+                                                itemSalvar.VALOR_MVA_IND = (itemSalvar.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar.VALOR_MVA_IND) : itemSalvar.VALOR_MVA_IND;
+
+                                                itemSalvar.INICIO_VIGENCIA_MVA = (itemSalvar.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar.INICIO_VIGENCIA_MVA) : itemSalvar.INICIO_VIGENCIA_MVA;
+
+                                                itemSalvar.FIM_VIGENCIA_MVA = (itemSalvar.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar.FIM_VIGENCIA_MVA) : itemSalvar.FIM_VIGENCIA_MVA;
+
+                                                itemSalvar.CREDITO_OUTORGADO = (itemSalvar.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar.CREDITO_OUTORGADO) : itemSalvar.CREDITO_OUTORGADO;
+
+                                                itemSalvar.VALOR_MVA_ATACADO = (itemSalvar.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar.VALOR_MVA_ATACADO) : itemSalvar.VALOR_MVA_ATACADO;
+
+                                                itemSalvar.REGIME_2560 = (itemSalvar.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar.REGIME_2560) : itemSalvar.REGIME_2560;
+
+                                                itemSalvar.UF_ORIGEM = (itemSalvar.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar.UF_ORIGEM) : itemSalvar.UF_ORIGEM;
+
+                                                itemSalvar.UF_DESTINO = (itemSalvar.UF_DESTINO != ufDestinoE[i]) ? ((item.UF_DESTINO != null) ? ufDestinoE[i] : itemSalvar.UF_DESTINO) : itemSalvar.UF_DESTINO;
+
+                                                //data da inclusão/alteração
+                                                itemSalvar.DT_ALTERACAO = DateTime.Now;
+
+
+                                                //segundo banco: SALVAR ALTERAÇÕES NO BANCO DE BKP OU TABELAS INICIAIS DO CLIENTE
+                                                TributacaoEmpresa itemSalvar2 = new TributacaoEmpresa();
+                                                itemSalvar2 = bd.TributacaoEmpresas.Find(idDoRegistros2);
+
+                                                itemSalvar2.PRODUTO_DESCRICAO = (itemSalvar2.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar2.PRODUTO_DESCRICAO) : itemSalvar2.PRODUTO_DESCRICAO;
+                                                itemSalvar2.PRODUTO_CEST = (itemSalvar2.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar2.PRODUTO_CEST) : itemSalvar2.PRODUTO_CEST;
+                                                itemSalvar2.PRODUTO_NCM = (itemSalvar2.PRODUTO_NCM != item.PRODUTO_NCM) ? ((item.PRODUTO_NCM != null) ? item.PRODUTO_NCM : itemSalvar2.PRODUTO_NCM) : itemSalvar2.PRODUTO_NCM;
+                                                itemSalvar2.PRODUTO_CATEGORIA = (itemSalvar2.PRODUTO_CATEGORIA != item.PRODUTO_CATEGORIA) ? ((item.PRODUTO_CATEGORIA != null) ? item.PRODUTO_CATEGORIA : itemSalvar2.PRODUTO_CATEGORIA) : itemSalvar2.PRODUTO_CATEGORIA;
+                                                itemSalvar2.FECP = (itemSalvar2.FECP != item.FECP) ? ((item.FECP != null) ? item.FECP : itemSalvar2.FECP) : itemSalvar2.FECP;
+                                                itemSalvar2.COD_NAT_RECEITA = (itemSalvar2.COD_NAT_RECEITA != item.COD_NAT_RECEITA) ? ((item.COD_NAT_RECEITA != null) ? item.COD_NAT_RECEITA : itemSalvar2.COD_NAT_RECEITA) : itemSalvar2.COD_NAT_RECEITA;
+
+                                                itemSalvar2.CST_ENTRADA_PIS_COFINS = (itemSalvar2.CST_ENTRADA_PIS_COFINS != item.CST_ENTRADA_PIS_COFINS) ? ((item.CST_ENTRADA_PIS_COFINS != null) ? item.CST_ENTRADA_PIS_COFINS : itemSalvar2.CST_ENTRADA_PIS_COFINS) : itemSalvar2.CST_ENTRADA_PIS_COFINS;
+                                                itemSalvar2.CST_SAIDA_PIS_COFINS = (itemSalvar2.CST_SAIDA_PIS_COFINS != item.CST_SAIDA_PIS_COFINS) ? ((item.CST_SAIDA_PIS_COFINS != null) ? item.CST_SAIDA_PIS_COFINS : itemSalvar2.CST_SAIDA_PIS_COFINS) : itemSalvar2.CST_SAIDA_PIS_COFINS;
+                                                itemSalvar2.ALIQ_ENTRADA_PIS = (itemSalvar2.ALIQ_ENTRADA_PIS != item.ALIQ_ENTRADA_PIS) ? ((item.ALIQ_ENTRADA_PIS != null) ? item.ALIQ_ENTRADA_PIS : itemSalvar2.ALIQ_ENTRADA_PIS) : itemSalvar2.ALIQ_ENTRADA_PIS;
+                                                itemSalvar2.ALIQ_SAIDA_PIS = (itemSalvar2.ALIQ_SAIDA_PIS != item.ALIQ_SAIDA_PIS) ? ((item.ALIQ_SAIDA_PIS != null) ? item.ALIQ_SAIDA_PIS : itemSalvar2.ALIQ_SAIDA_PIS) : itemSalvar2.ALIQ_SAIDA_PIS;
+                                                itemSalvar2.ALIQ_ENTRADA_COFINS = (itemSalvar2.ALIQ_ENTRADA_COFINS != item.ALIQ_ENTRADA_COFINS) ? ((item.ALIQ_ENTRADA_COFINS != null) ? item.ALIQ_ENTRADA_COFINS : itemSalvar2.ALIQ_ENTRADA_COFINS) : itemSalvar2.ALIQ_ENTRADA_COFINS;
+                                                itemSalvar2.ALIQ_SAIDA_COFINS = (itemSalvar2.ALIQ_SAIDA_COFINS != item.ALIQ_SAIDA_COFINS) ? ((item.ALIQ_SAIDA_COFINS != null) ? item.ALIQ_SAIDA_COFINS : itemSalvar2.ALIQ_SAIDA_COFINS) : itemSalvar2.ALIQ_SAIDA_COFINS;
+
+                                                itemSalvar2.CST_VENDA_ATA = (itemSalvar2.CST_VENDA_ATA != item.CST_VENDA_ATA) ? ((item.CST_VENDA_ATA != null) ? item.CST_VENDA_ATA : itemSalvar2.CST_VENDA_ATA) : itemSalvar2.CST_VENDA_ATA;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_ATA = (itemSalvar2.ALIQ_ICMS_VENDA_ATA != item.ALIQ_ICMS_VENDA_ATA) ? ((item.ALIQ_ICMS_VENDA_ATA != null) ? item.ALIQ_ICMS_VENDA_ATA : itemSalvar2.ALIQ_ICMS_VENDA_ATA) : itemSalvar2.ALIQ_ICMS_VENDA_ATA;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA = (itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA != item.ALIQ_ICMS_ST_VENDA_ATA) ? ((item.ALIQ_ICMS_ST_VENDA_ATA != null) ? item.ALIQ_ICMS_ST_VENDA_ATA : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA) : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA != item.RED_BASE_CALC_ICMS_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA;
+
+                                                itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL != item.CST_VENDA_ATA_SIMP_NACIONAL) ? ((item.CST_VENDA_ATA_SIMP_NACIONAL != null) ? item.CST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.CST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_ATA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_ATA_SIMP_NACIONAL;
+
+
+                                                itemSalvar2.CST_VENDA_VAREJO_CONT = (itemSalvar2.CST_VENDA_VAREJO_CONT != item.CST_VENDA_VAREJO_CONT) ? ((item.CST_VENDA_VAREJO_CONT != null) ? item.CST_VENDA_VAREJO_CONT : itemSalvar2.CST_VENDA_VAREJO_CONT) : itemSalvar2.CST_VENDA_VAREJO_CONT;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT = (itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT != item.ALIQ_ICMS_VENDA_VAREJO_CONT) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONT != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONT : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT) : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONT;
+                                                itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT = (itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT != item.RED_BASE_CALC_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_VENDA_VAREJO_CONT : itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT) : itemSalvar2.RED_BASE_CALC_VENDA_VAREJO_CONT;
+                                                itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT = (itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) ? ((item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT != null) ? item.RED_BASE_CALC_ST_VENDA_VAREJO_CONT : itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT) : itemSalvar2.RED_BASE_CALC_ST_VENDA_VAREJO_CONT;
+
+
+                                                itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL != item.CST_VENDA_VAREJO_CONS_FINAL) ? ((item.CST_VENDA_VAREJO_CONS_FINAL != null) ? item.CST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.CST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.ALIQ_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.ALIQ_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.RED_BASE_CALC_ICMS_VENDA_VAREJO_CONS_FINAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) ? ((item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL != null) ? item.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_VENDA_VAREJO_CONS_FINAL;
+
+
+                                                itemSalvar2.CST_COMPRA_DE_IND = (itemSalvar2.CST_COMPRA_DE_IND != item.CST_COMPRA_DE_IND) ? ((item.CST_COMPRA_DE_IND != null) ? item.CST_COMPRA_DE_IND : itemSalvar2.CST_COMPRA_DE_IND) : itemSalvar2.CST_COMPRA_DE_IND;
+                                                itemSalvar2.ALIQ_ICMS_COMP_DE_IND = (itemSalvar2.ALIQ_ICMS_COMP_DE_IND != item.ALIQ_ICMS_COMP_DE_IND) ? ((item.ALIQ_ICMS_COMP_DE_IND != null) ? item.ALIQ_ICMS_COMP_DE_IND : itemSalvar2.ALIQ_ICMS_COMP_DE_IND) : itemSalvar2.ALIQ_ICMS_COMP_DE_IND;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND = (itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND != item.ALIQ_ICMS_ST_COMP_DE_IND) ? ((item.ALIQ_ICMS_ST_COMP_DE_IND != null) ? item.ALIQ_ICMS_ST_COMP_DE_IND : itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND) : itemSalvar2.ALIQ_ICMS_ST_COMP_DE_IND;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_IND : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_IND;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_IND;
+
+                                                itemSalvar2.CST_COMPRA_DE_ATA = (itemSalvar2.CST_COMPRA_DE_ATA != item.CST_COMPRA_DE_ATA) ? ((item.CST_COMPRA_DE_ATA != null) ? item.CST_COMPRA_DE_ATA : itemSalvar2.CST_COMPRA_DE_ATA) : itemSalvar2.CST_COMPRA_DE_ATA;
+                                                itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA = (itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA != item.ALIQ_ICMS_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_COMPRA_DE_ATA : itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA) : itemSalvar2.ALIQ_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA = (itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA != item.ALIQ_ICMS_ST_COMPRA_DE_ATA) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_ATA != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_ATA : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA) : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_COMPRA_DE_ATA : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_DE_ATA;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_ATA;
+
+                                                itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL != item.CST_COMPRA_DE_SIMP_NACIONAL) ? ((item.CST_COMPRA_DE_SIMP_NACIONAL != null) ? item.CST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.CST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.ALIQ_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_COMPRA_SIMP_NACIONAL;
+                                                itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL = (itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) ? ((item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL != null) ? item.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL) : itemSalvar2.RED_BASE_CALC_ICMS_ST_COMPRA_DE_SIMP_NACIONAL;
+
+
+                                                itemSalvar2.CST_DA_NFE_DA_IND_FORN = (itemSalvar2.CST_DA_NFE_DA_IND_FORN != item.CST_DA_NFE_DA_IND_FORN) ? ((item.CST_DA_NFE_DA_IND_FORN != null) ? item.CST_DA_NFE_DA_IND_FORN : itemSalvar2.CST_DA_NFE_DA_IND_FORN) : itemSalvar2.CST_DA_NFE_DA_IND_FORN;
+                                                itemSalvar2.CST_DA_NFE_DE_ATA_FORN = (itemSalvar2.CST_DA_NFE_DE_ATA_FORN != item.CST_DA_NFE_DE_ATA_FORN) ? ((item.CST_DA_NFE_DE_ATA_FORN != null) ? item.CST_DA_NFE_DE_ATA_FORN : itemSalvar2.CST_DA_NFE_DE_ATA_FORN) : itemSalvar2.CST_DA_NFE_DE_ATA_FORN;
+                                                itemSalvar2.CSOSNT_DANFE_DOS_NFOR = (itemSalvar2.CSOSNT_DANFE_DOS_NFOR != item.CSOSNT_DANFE_DOS_NFOR) ? ((item.CSOSNT_DANFE_DOS_NFOR != null) ? item.CSOSNT_DANFE_DOS_NFOR : itemSalvar2.CSOSNT_DANFE_DOS_NFOR) : itemSalvar2.CSOSNT_DANFE_DOS_NFOR;
+
+                                                itemSalvar2.ALIQ_ICMS_NFE = (itemSalvar2.ALIQ_ICMS_NFE != item.ALIQ_ICMS_NFE) ? ((item.ALIQ_ICMS_NFE != null) ? item.ALIQ_ICMS_NFE : itemSalvar2.ALIQ_ICMS_NFE) : itemSalvar2.ALIQ_ICMS_NFE;
+                                                itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA = (itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA != item.ALIQ_ICMS_NFE_FOR_ATA) ? ((item.ALIQ_ICMS_NFE_FOR_ATA != null) ? item.ALIQ_ICMS_NFE_FOR_ATA : itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA) : itemSalvar2.ALIQ_ICMS_NFE_FOR_ATA;
+                                                itemSalvar2.ALIQ_ICMS_NFE_FOR_SN = (itemSalvar2.ALIQ_ICMS_NFE_FOR_SN != item.ALIQ_ICMS_NFE_FOR_SN) ? ((item.ALIQ_ICMS_NFE_FOR_SN != null) ? item.ALIQ_ICMS_NFE_FOR_SN : itemSalvar2.ALIQ_ICMS_NFE_FOR_SN) : itemSalvar2.ALIQ_ICMS_NFE_FOR_SN;
+
+
+                                                itemSalvar2.TIPO_MVA = (itemSalvar2.TIPO_MVA != item.TIPO_MVA) ? ((item.TIPO_MVA != null) ? item.TIPO_MVA : itemSalvar2.TIPO_MVA) : itemSalvar2.TIPO_MVA;
+
+                                                itemSalvar2.VALOR_MVA_IND = (itemSalvar2.VALOR_MVA_IND != item.VALOR_MVA_IND) ? ((item.VALOR_MVA_IND != null) ? item.VALOR_MVA_IND : itemSalvar2.VALOR_MVA_IND) : itemSalvar2.VALOR_MVA_IND;
+
+                                                itemSalvar2.INICIO_VIGENCIA_MVA = (itemSalvar2.INICIO_VIGENCIA_MVA != item.INICIO_VIGENCIA_MVA) ? ((item.INICIO_VIGENCIA_MVA != null) ? item.INICIO_VIGENCIA_MVA : itemSalvar2.INICIO_VIGENCIA_MVA) : itemSalvar2.INICIO_VIGENCIA_MVA;
+
+                                                itemSalvar2.FIM_VIGENCIA_MVA = (itemSalvar2.FIM_VIGENCIA_MVA != item.FIM_VIGENCIA_MVA) ? ((item.FIM_VIGENCIA_MVA != null) ? item.FIM_VIGENCIA_MVA : itemSalvar2.FIM_VIGENCIA_MVA) : itemSalvar2.FIM_VIGENCIA_MVA;
+
+                                                itemSalvar2.CREDITO_OUTORGADO = (itemSalvar2.CREDITO_OUTORGADO != item.CREDITO_OUTORGADO) ? ((item.CREDITO_OUTORGADO != null) ? item.CREDITO_OUTORGADO : itemSalvar2.CREDITO_OUTORGADO) : itemSalvar2.CREDITO_OUTORGADO;
+
+                                                itemSalvar2.VALOR_MVA_ATACADO = (itemSalvar2.VALOR_MVA_ATACADO != item.VALOR_MVA_ATACADO) ? ((item.VALOR_MVA_ATACADO != null) ? item.VALOR_MVA_ATACADO : itemSalvar2.VALOR_MVA_ATACADO) : itemSalvar2.VALOR_MVA_ATACADO;
+
+                                                itemSalvar2.REGIME_2560 = (itemSalvar2.REGIME_2560 != item.REGIME_2560) ? ((item.REGIME_2560 != null) ? item.REGIME_2560 : itemSalvar2.REGIME_2560) : itemSalvar2.REGIME_2560;
+
+                                                itemSalvar2.UF_ORIGEM = (itemSalvar2.UF_ORIGEM != item.UF_ORIGEM) ? ((item.UF_ORIGEM != null) ? item.UF_ORIGEM : itemSalvar2.UF_ORIGEM) : itemSalvar2.UF_ORIGEM;
+
+                                                itemSalvar2.UF_DESTINO = (itemSalvar2.UF_DESTINO != ufDestinoE[i]) ? ((item.UF_DESTINO != null) ? item.UF_DESTINO : ufDestinoE[i]) : itemSalvar2.UF_DESTINO;
+
+                                                //data da inclusão/alteração
+                                                itemSalvar2.DT_ALTERACAO = DateTime.Now;
+
+                                                //try catch para salvar no banco e na lista de retorno
+                                                try
+                                                {
+
+                                                    //salva os itens quando existema na tabela: SALVA AS ALTERAÇÕES
+                                                    listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
+                                                    db.SaveChanges(); //SALVAR AS ALTERACOES
+                                                    bd.SaveChanges();
+                                                    contAlterados++;
+                                                }
+                                                catch (Exception e)
+                                                {
+                                                    //erros e mensagens
+                                                    if (e.InnerException != null && e.InnerException.InnerException != null && e.InnerException.InnerException.Message != null)
+                                                    {
+
+                                                        _log.Error(e.InnerException.InnerException.Message);
+                                                        return BadRequest("ERRO AO SALVAR ITEM: " + e.InnerException.InnerException.Message);
+                                                    }
+
+                                                    if (e.Message != null)
+                                                    {
+
+                                                        _log.Error("ERRO AO SALVAR itemRec " + e.Message);
+                                                        return BadRequest("ERRO AO SALVAR ITEM: " + e.Message);
+                                                    }
+
+                                                    return BadRequest("ERRO AO SALVAR ITEM");
+                                                }//fim do catch
+                                            }
+                                        }
+
+                                    }//FIM DO FOR DE DESTINOS
+                                    codBarrasTamanho++; //quantidade de produtos que o codigo de barras era menor que 7
+                                }   //fim DO ELSE DE TAMANHO
+
+
+
+                            }
+                            else //CASO VENHA NULO OU ZERADO ELE SOMA MAIS UM NA VARIAVEL AUXILIAR E PASSA PARA O PROXIMO ITEM DO JSON
+                            {
+                                /*TO-DO : PRODUTOS QUE NÃO POSSUEM CODIGO DE BARRAS*/
+                                aux++; //soma um a cada vez que um item não possuir codigo de barras
+                            }
+                        }
                     }
-                    else //CASO VENHA NULO OU ZERADO ELE SOMA MAIS UM NA VARIAVEL AUXILIAR E PASSA PARA O PROXIMO ITEM DO JSON
-                    {
-                        /*TO-DO : PRODUTOS QUE NÃO POSSUEM CODIGO DE BARRAS*/
-                        aux++; //soma um a cada vez que um item não possuir codigo de barras
-                    }
+
                 }
-            } //FIM DO FOREACH DOS ITENS
+
+
+
+            } //fim foreach ITEM A ITEM DO JSON
+          
+
+           
+            
             if (contAlterados <= 0 && cont <= 0)
             {
                 if (auxEstado > 0)
@@ -1187,7 +1395,7 @@ namespace MtxApi.Controllers
             }
 
             _log.Debug("FINAL DE PROCESSO COM " + cont + " ITENS SALVOS");
-            return Ok(new { sucess = "true", itensSalvos = cont, ufOrigemDestinoIncorretos = auxEstado, semCodigoBarras = aux, itemCodigoBarrasZero = prodZerado.ToString(), itensAlterados = contAlterados, codBarrasTamanhoIncorreto = codBarrasTamanho, totalItens = itens.Count() }); ;
+            return Ok(new { sucess = "true", itensSalvos = cont, itensRegistrosCNPJInvalido = contRegistrosCNPJInválido,  ufOrigemDestinoIncorretos = auxEstado, semCodigoBarras = aux, itemCodigoBarrasZero = prodZerado.ToString(), itensAlterados = contAlterados, codBarrasTamanhoIncorreto = codBarrasTamanho, totalItens = itens.Count() }); ;
 
         }
 
