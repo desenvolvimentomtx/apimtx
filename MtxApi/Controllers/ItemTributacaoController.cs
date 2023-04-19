@@ -1,6 +1,7 @@
 ﻿using MtxApi.Models;
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -17,8 +18,9 @@ namespace MtxApi.Controllers
     {
         //log
         private static readonly log4net.ILog _log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         //Instancia do contexto do banco
-        MtxApiContext db = new MtxApiContext();
+        MtxApiContext     db = new MtxApiContext();
         MtxClienteContext bd = new MtxClienteContext();
 
         //Enviar dados para o banco de tributação das empresas pelo cnpj
@@ -285,12 +287,18 @@ namespace MtxApi.Controllers
                                     * que existem outros codigos de barras iguais cadastrados anteriormente*/
 
                                     Produto cadProd = db.Produtos.Where(x => x.codBarras == prodItem && x.CodBarrasGErado.Equals(codBarrasGerado.ToString())).FirstOrDefault(); //verifica o cadastro
-
-                                    Produto prodSalvar = new Produto();
+                                                                        
 
                                     //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
                                     if (cadProd == null)
                                     {
+
+                                        db = new MtxApiContext();
+                                        bd = new MtxClienteContext();
+
+
+                                        //Produto prodSalvar = new Produto();
+                                        var prodSalvar = new Produto();
 
                                         prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
                                         prodSalvar.CodBarrasGErado = codBarrasGerado;
@@ -316,9 +324,11 @@ namespace MtxApi.Controllers
                                         //try-catch para salvar o produto na tabela
                                         try
                                         {
-
                                             db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
+                                            bd.Produtos.Add(prodSalvar);//objeto para ser salvo no banco de comparação
+
                                             db.SaveChanges();
+                                            bd.SaveChanges();
 
                                             contProdSalvos++;
                                         }
@@ -346,6 +356,8 @@ namespace MtxApi.Controllers
 
                                     } //fim cad produto
 
+
+                                   
                                     //VERIFICAR SE HA TRIBUTAÇÃO PARA O PRODUTO DEPENDENDO DA EMPRESA (SIMPLES OU NORMAL)
                                     if (cadProd == null)
                                     {
@@ -374,6 +386,9 @@ namespace MtxApi.Controllers
                                         {
                                             //MONTAR O MECANISMO PARA SALVAR O ITEM NA TABELA
                                             TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
+
+                                            db = new MtxApiContext();
+
                                             //VERIFICAR A CATEGORIA
                                             if (item.PRODUTO_CATEGORIA != null)
                                             {
@@ -384,7 +399,6 @@ namespace MtxApi.Controllers
                                             {
                                                 prodTribNCMSalvar.categoria = 2794; //se a cat vier nulo atribuir 2794(VERIFICAR)
                                             }
-
                                             //ATRIBUIR OS OUTROS DADOS
                                             prodTribNCMSalvar.UF_Origem = item.UF_ORIGEM;
                                             prodTribNCMSalvar.UF_Destino = ufDestinoProd[i];
@@ -402,6 +416,7 @@ namespace MtxApi.Controllers
                                                 //salvar
                                                 db.TributacaoNCM.Add(prodTribNCMSalvar);//objeto para ser salvo no banco
                                                 db.SaveChanges();
+                                              
 
                                             }
                                             catch (Exception e)
@@ -450,6 +465,9 @@ namespace MtxApi.Controllers
                                         if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
                                         {
                                             TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                            db = new MtxApiContext();
+                                            bd = new MtxClienteContext();
+
                                             //atribunido dados ao objeto
                                             itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
                                             itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
@@ -580,6 +598,9 @@ namespace MtxApi.Controllers
                                             if (idDoRegistros != 0)
                                             {
                                                 TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+
+                                                db = new MtxApiContext();
+                                                bd = new MtxClienteContext();
 
                                                 itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
 
@@ -838,6 +859,8 @@ namespace MtxApi.Controllers
                                     //se ele nao esta cadastrado na tabela de produto ele deve ser cadastrado nesta tabela
                                     if (cadProd == null)
                                     {
+                                        db = new MtxApiContext();
+                                        bd = new MtxClienteContext();
 
                                         prodSalvar.codBarras = Int64.Parse(item.PRODUTO_COD_BARRAS);
                                         prodSalvar.CodBarrasGErado = codBarrasGerado;
@@ -867,6 +890,7 @@ namespace MtxApi.Controllers
                                             db.Produtos.Add(prodSalvar);//objeto para ser salvo no banco
                                             bd.Produtos.Add(prodSalvar);//objeto para ser salvo no banco de comparação
                                             db.SaveChanges();
+                                            bd.SaveChanges();
 
                                             contProdSalvos++;
                                         }
@@ -921,6 +945,8 @@ namespace MtxApi.Controllers
                                         TributacaoNCM tribnaNCM = db.TributacaoNCM.Where(x => x.ncm == prodItemNCM && x.UF_Origem == item.UF_ORIGEM && x.UF_Destino == dest && x.CRT == crt && x.Regime_Trib == regime_tributario).FirstOrDefault();
                                         if (tribnaNCM == null)
                                         {
+                                            db = new MtxApiContext();
+                                       
 
                                             TributacaoNCM prodTribNCMSalvar = new TributacaoNCM();
 
@@ -1001,6 +1027,8 @@ namespace MtxApi.Controllers
                                         if (tribEmpresas2.Count() <= 0 && item.PRODUTO_COD_BARRAS != "0")
                                         {
                                             TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                            db = new MtxApiContext();
+                                            bd = new MtxClienteContext();
                                             //atribunido dados ao objeto
                                             itemSalvar.CNPJ_EMPRESA = empresa.cnpj;
                                             itemSalvar.PRODUTO_COD_BARRAS = item.PRODUTO_COD_BARRAS;
@@ -1086,11 +1114,11 @@ namespace MtxApi.Controllers
                                             try
                                             {
                                                 //salva os itens quando nao existe na tabela
-                                                db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
-                                                bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
+                                                 db.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco
+                                                 bd.TributacaoEmpresas.Add(itemSalvar);//objeto para ser salvo no banco de comparação
                                                 listaSalvosTribEmpresa.Add(itemSalvar);//lista para retorno
                                                 db.SaveChanges();
-                                                db.SaveChanges();
+                                                bd.SaveChanges();
 
                                                 cont++;
                                             }
@@ -1129,6 +1157,9 @@ namespace MtxApi.Controllers
                                             if (idDoRegistros != 0)
                                             {
                                                 TributacaoEmpresa itemSalvar = new TributacaoEmpresa();
+                                                db = new MtxApiContext();
+                                                bd = new MtxClienteContext();
+
                                                 itemSalvar = db.TributacaoEmpresas.Find(idDoRegistros);
                                                 itemSalvar.PRODUTO_DESCRICAO = (itemSalvar.PRODUTO_DESCRICAO != item.PRODUTO_DESCRICAO) ? ((item.PRODUTO_DESCRICAO != null) ? item.PRODUTO_DESCRICAO : itemSalvar.PRODUTO_DESCRICAO) : itemSalvar.PRODUTO_DESCRICAO;
                                                 itemSalvar.PRODUTO_CEST = (itemSalvar.PRODUTO_CEST != item.PRODUTO_CEST) ? ((item.PRODUTO_CEST != null) ? item.PRODUTO_CEST : itemSalvar.PRODUTO_CEST) : itemSalvar.PRODUTO_CEST;
@@ -1393,6 +1424,37 @@ namespace MtxApi.Controllers
                     return BadRequest(myError2.ToString());
                 }
             }
+            
+            
+                //TO-DO FAZER A AVALIAÇÃO ANTES DE ENTREGAR O RESULTADO NA TELA DA API: RELIZAR A VALIDAÇÃO DOS ITENS EXISTENTES BASEADO NA ORIGEM E DESTINO E O TIPO DE TRIBUTAÇÃO QUE O CLIENTE POSSUI
+                
+                //1º Gerar lista do banco com os produtos da empresa
+                IQueryable<TributacaoEmpresa> listaEmpresa;
+                var empresaVerificar = db.Empresas.Where(a => a.cnpj.Equals(cnpjFormatado)).FirstOrDefault();
+
+                listaEmpresa = from a in db.TributacaoEmpresas where a.CNPJ_EMPRESA.Equals(cnpjFormatado) select a; //FILTRA O QUE FOR SIMPLES NACIONAL
+
+                //2º Verificar os destinos relacionados a essa empresa
+                string estadoOrigem = empresaVerificar.estado;
+
+                List<String> listaEstadosDestino = new List<String>();
+               string auxDestino = "";
+                foreach (var item in listaEmpresa)
+                { 
+                    if(item.UF_DESTINO != estadoOrigem)
+                    {
+                       if(item.UF_DESTINO != auxDestino)
+                        {
+                            listaEstadosDestino.Add(item.UF_DESTINO);
+                            auxDestino = item.UF_DESTINO;
+
+                        }
+                       
+                    }
+                
+                }
+
+
 
             _log.Debug("FINAL DE PROCESSO COM " + cont + " ITENS SALVOS");
             return Ok(new { sucess = "true", itensSalvos = cont, itensRegistrosCNPJInvalido = contRegistrosCNPJInválido,  ufOrigemDestinoIncorretos = auxEstado, semCodigoBarras = aux, itemCodigoBarrasZero = prodZerado.ToString(), itensAlterados = contAlterados, codBarrasTamanhoIncorreto = codBarrasTamanho, totalItens = itens.Count() }); ;
