@@ -7,8 +7,9 @@ namespace MtxApi.Models
     [Table("produtos")]
     public class Produto
     {
-        [Key]
-        public int Id { get; set; }
+        [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("Id")]
+        public int Id { get; private set; }
 
        
         [Column("Cod_Barras")]
