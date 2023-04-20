@@ -343,3 +343,8 @@ C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\MailKitLite.pdb
 C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\MailKitLite.xml
 C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\MimeKitLite.pdb
 C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\MimeKitLite.xml
+C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\Microsoft.AspNet.TelemetryCorrelation.dll
+C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\Microsoft.AspNet.TelemetryCorrelation.xml
+C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\Microsoft.AI.Web.dll
+C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\Microsoft.AI.Web.pdb
+C:\Users\preciso\source\repos\MtxApi\MtxApi\bin\Microsoft.AI.Web.xml

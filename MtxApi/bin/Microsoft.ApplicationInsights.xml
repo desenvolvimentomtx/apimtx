@@ -274,6 +274,23 @@
             Flushes the in-memory buffer.
             </summary>
         </member>
+        <member name="M:Microsoft.ApplicationInsights.Channel.RedirectHttpHandler.SendAsync(System.Net.Http.HttpRequestMessage,System.Threading.CancellationToken)">
+            <summary>
+            This method will handle all requests from HttpClient.SendAsync().
+            This inspects <see cref="T:System.Net.Http.HttpResponseMessage"/> to see if we received a redirect from the Ingestion service.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.Channel.RedirectHttpHandler.HandleRedirectAsync(System.Net.Http.HttpRequestMessage,System.Net.Http.HttpResponseMessage,System.Threading.CancellationToken)">
+            <summary>
+            This method handles redirection.
+            This keeps extra var allocation out of the hot path.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.Channel.RedirectHttpHandler.Cache`1">
+            <summary>
+            Simple class to encapsulate redirect cache.
+            </summary>
+        </member>
         <member name="T:Microsoft.ApplicationInsights.Channel.SamplingScoreGenerator">
             <summary>
             Utility class for sampling score generation.
@@ -8036,7 +8053,7 @@
             <summary>Gets the specified metric, or creates one if no such metric exists.</summary>
             <param name="metricIdentifier">The identity of the metric.</param>
             <param name="metricConfiguration">@The configutration of the metric.</param>
-            <returns>A metric witht he specified identify and configuration.</returns>
+            <returns>A metric with the specified identify and configuration.</returns>
             <exception cref="T:System.ArgumentException">If a metric with the specified identify exists,
             but its configuration does not match the specified configuration.
             You may not change a metric configurations once a metric was created for the first time.

@@ -286,13 +286,6 @@
             Default timeout for the web requests made to obtain Azure IMS data. Internal to expose to tests.
             </summary>
         </member>
-        <member name="F:Microsoft.ApplicationInsights.WindowsServer.Implementation.AzureMetadataRequestor.azureIMSRequestor">
-            <summary>
-            Private function for mocking out the actual call to IMS in unit tests. Available to internal only.
-            </summary>
-            parameter sent to the func is a string representing the Uri to request Azure IMS data from.
-            <returns>An instance of AzureInstanceComputeMetadata or null.</returns>
-        </member>
         <member name="P:Microsoft.ApplicationInsights.WindowsServer.Implementation.AzureMetadataRequestor.BaseAimsUri">
             <summary>
             Gets or sets the base URI for the Azure Instance Metadata service. Internal to allow overriding in test.
@@ -300,6 +293,11 @@
             <remarks>
             At this time, this service does not support https. We should monitor their website for more information. https://docs.microsoft.com/azure/virtual-machines/windows/instance-metadata-service .
             </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.WindowsServer.Implementation.AzureMetadataRequestor.GetHttpClient">
+            <summary>
+            Provides a new HttpClient. This method can be mocked in unit tests.
+            </summary>
         </member>
         <member name="F:Microsoft.ApplicationInsights.WindowsServer.Implementation.AzureRoleEnvironmentContextReader.instance">
             <summary>
