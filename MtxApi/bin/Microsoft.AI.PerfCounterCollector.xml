@@ -1408,7 +1408,7 @@
             <param name="next">The next TelemetryProcessor in the chain.</param>
             <exception cref="T:System.ArgumentNullException">Thrown if next is null.</exception>
         </member>
-        <member name="M:Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.QuickPulse.QuickPulseTelemetryProcessor.#ctor(Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor,Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.Implementation.QuickPulse.Helpers.Clock,System.Nullable{System.Single},System.Nullable{System.Single})">
+        <member name="M:Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.QuickPulse.QuickPulseTelemetryProcessor.#ctor(Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor,Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.Implementation.QuickPulse.Helpers.Clock,System.Nullable{System.Single},System.Nullable{System.Single},System.Nullable{System.Single})">
             <summary>
             Initializes a new instance of the <see cref="T:Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.QuickPulse.QuickPulseTelemetryProcessor"/> class. Internal constructor for unit tests only.
             </summary>
@@ -1416,6 +1416,7 @@
             <param name="timeProvider">Time provider.</param>
             <param name="maxGlobalTelemetryQuota">Max overall telemetry quota.</param>
             <param name="initialGlobalTelemetryQuota">Initial overall telemetry quota.</param>
+            <param name="quotaAccrualRatePerSec">Quota Accrual rate per second.</param>
             <exception cref="T:System.ArgumentNullException">Thrown if next is null.</exception>
         </member>
         <member name="P:Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector.QuickPulse.QuickPulseTelemetryProcessor.Microsoft#ApplicationInsights#Extensibility#PerfCounterCollector#QuickPulse#IQuickPulseTelemetryProcessor#ServiceEndpoint">

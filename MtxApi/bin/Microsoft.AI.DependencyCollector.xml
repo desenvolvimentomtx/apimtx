@@ -4,6 +4,41 @@
         <name>Microsoft.AI.DependencyCollector</name>
     </assembly>
     <members>
+        <member name="T:Microsoft.ApplicationInsights.DependencyCollector.DependencyTelemetryExtensions">
+            <summary>
+            Extension methods for DependencyTelemetry.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.DependencyCollector.DependencyTelemetryExtensions.TryGetHttpRequestOperationDetail(Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry,System.Net.Http.HttpRequestMessage@)">
+            <summary>
+            The <see cref="T:System.Net.Http.HttpRequestMessage"/> are added to the dependency telemetry which may be useful
+            to enhance DependencyTelemetry telemetry by <see cref="T:Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer" /> implementations.
+            Objects retrieved here are not automatically serialized and sent to the backend.
+            </summary>
+            <param name="telemetry"><see cref="N:Microsoft.ApplicationInsights.DependencyCollector"/> to retrive operation detail from.</param>
+            <param name="message">When this method returns, contains the <see cref="T:System.Net.Http.HttpRequestMessage"/> of the request, or the default value of the type if the operation failed.</param>
+            <returns>true if the key was found; otherwise, false.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.DependencyCollector.DependencyTelemetryExtensions.TryGetHttpResponseOperationDetail(Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry,System.Net.Http.HttpResponseMessage@)">
+            <summary>
+            The <see cref="T:System.Net.Http.HttpResponseMessage"/> are added to the dependency telemetry which may be useful
+            to enhance DependencyTelemetry telemetry by <see cref="T:Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer" /> implementations.
+            Objects retrieved here are not automatically serialized and sent to the backend.
+            </summary>
+            <param name="telemetry"><see cref="N:Microsoft.ApplicationInsights.DependencyCollector"/> to retrive operation detail from.</param>
+            <param name="message">When this method returns, contains the <see cref="T:System.Net.Http.HttpResponseMessage"/> of the request, or the default value of the type if the operation failed.</param>
+            <returns>true if the key was found; otherwise, false.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.DependencyCollector.DependencyTelemetryExtensions.TryGetHttpResponseHeadersOperationDetail(Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry,System.Net.WebHeaderCollection@)">
+            <summary>
+            The <see cref="T:System.Net.WebHeaderCollection"/> are added to the dependency telemetry which may be useful
+            to enhance DependencyTelemetry telemetry by <see cref="T:Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer" /> implementations.
+            Objects retrieved here are not automatically serialized and sent to the backend.
+            </summary>
+            <param name="telemetry"><see cref="N:Microsoft.ApplicationInsights.DependencyCollector"/> to retrive operation detail from.</param>
+            <param name="headers">When this method returns, contains the <see cref="T:System.Net.WebHeaderCollection"/> of the request, or the default value of the type if the operation failed.</param>
+            <returns>true if the key was found; otherwise, false.</returns>
+        </member>
         <member name="T:Microsoft.ApplicationInsights.DependencyCollector.DependencyTrackingTelemetryModule">
             <summary>
             Remote dependency monitoring.
@@ -1450,6 +1485,31 @@
             If telemetry item is http dependency - converts it to the well-known type of the dependency.
             </summary>
             <param name="telemetry">Telemetry item to convert.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.DependencyCollector.OperationDetailConstants">
+            <summary>
+            Constants for operation details.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.DependencyCollector.OperationDetailConstants.HttpRequestOperationDetailName">
+            <summary>
+            Constant for HTTP request operation detail name.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.DependencyCollector.OperationDetailConstants.HttpResponseOperationDetailName">
+            <summary>
+            Constant for HTTP response operation detail name.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.DependencyCollector.OperationDetailConstants.HttpResponseHeadersOperationDetailName">
+            <summary>
+            Constant for HTTP response header operation detail name.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.DependencyCollector.OperationDetailConstants.SqlCommandOperationDetailName">
+            <summary>
+            Constant for SQL command operation detail name.
+            </summary>
         </member>
         <member name="T:Microsoft.ApplicationInsights.DependencyCollector.SanitizedHostList">
             <summary>

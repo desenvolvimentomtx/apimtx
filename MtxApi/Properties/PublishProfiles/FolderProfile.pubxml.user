@@ -5,11 +5,11 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <_PublishTargetUrl>C:\Users\preciso\Desktop\mtxapi</_PublishTargetUrl>
-    <History>True|2023-03-24T13:11:38.4566927Z;True|2023-02-23T17:16:14.3714692-03:00;True|2023-02-23T16:42:08.0763544-03:00;True|2023-02-22T15:37:28.5935954-03:00;True|2023-01-13T16:47:37.1419619-03:00;True|2023-01-13T14:34:35.2813288-03:00;True|2023-01-11T16:44:02.1172770-03:00;True|2023-01-05T14:22:37.1583677-03:00;False|2023-01-05T14:21:18.3514410-03:00;True|2023-01-05T09:54:37.0080682-03:00;True|2023-01-02T16:51:01.4293010-03:00;True|2023-01-02T16:25:43.1123978-03:00;True|2022-12-26T10:06:14.3491650-03:00;True|2022-10-28T09:40:45.1769123-03:00;True|2022-05-26T09:49:55.3655090-03:00;True|2022-02-14T20:40:52.9795621-03:00;True|2022-01-06T12:25:22.4896084-03:00;True|2022-01-03T14:51:26.1107817-03:00;</History>
+    <History>True|2023-04-20T12:04:59.2469534Z;True|2023-03-24T10:11:38.4566927-03:00;True|2023-02-23T17:16:14.3714692-03:00;True|2023-02-23T16:42:08.0763544-03:00;True|2023-02-22T15:37:28.5935954-03:00;True|2023-01-13T16:47:37.1419619-03:00;True|2023-01-13T14:34:35.2813288-03:00;True|2023-01-11T16:44:02.1172770-03:00;True|2023-01-05T14:22:37.1583677-03:00;False|2023-01-05T14:21:18.3514410-03:00;True|2023-01-05T09:54:37.0080682-03:00;True|2023-01-02T16:51:01.4293010-03:00;True|2023-01-02T16:25:43.1123978-03:00;True|2022-12-26T10:06:14.3491650-03:00;True|2022-10-28T09:40:45.1769123-03:00;True|2022-05-26T09:49:55.3655090-03:00;True|2022-02-14T20:40:52.9795621-03:00;True|2022-01-06T12:25:22.4896084-03:00;True|2022-01-03T14:51:26.1107817-03:00;</History>
   </PropertyGroup>
   <ItemGroup>
     <File Include="ApplicationInsights.config">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>04/20/2023 08:58:41</publishTime>
     </File>
     <File Include="Areas/HelpPage/HelpPage.css">
       <publishTime>11/04/2021 17:43:03</publishTime>
@@ -117,34 +117,40 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
       <publishTime>11/04/2021 17:43:03</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.DependencyCollector.dll">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:55:08</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.DependencyCollector.pdb">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:53:04</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.PerfCounterCollector.dll">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:54:46</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.PerfCounterCollector.pdb">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:53:04</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.ServerTelemetryChannel.dll">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:55:18</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.ServerTelemetryChannel.pdb">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:53:04</publishTime>
+    </File>
+    <File Include="bin/Microsoft.AI.Web.dll">
+      <publishTime>07/19/2022 16:54:48</publishTime>
+    </File>
+    <File Include="bin/Microsoft.AI.Web.pdb">
+      <publishTime>07/19/2022 16:53:16</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.WindowsServer.dll">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:54:48</publishTime>
     </File>
     <File Include="bin/Microsoft.AI.WindowsServer.pdb">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:53:12</publishTime>
     </File>
     <File Include="bin/Microsoft.ApplicationInsights.dll">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:54:46</publishTime>
     </File>
     <File Include="bin/Microsoft.ApplicationInsights.pdb">
-      <publishTime>11/04/2021 17:43:03</publishTime>
+      <publishTime>07/19/2022 16:52:56</publishTime>
     </File>
     <File Include="bin/Microsoft.AspNet.Identity.Core.dll">
       <publishTime>11/04/2021 17:43:03</publishTime>
@@ -154,6 +160,9 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
     </File>
     <File Include="bin/Microsoft.AspNet.Identity.Owin.dll">
       <publishTime>11/04/2021 17:43:03</publishTime>
+    </File>
+    <File Include="bin/Microsoft.AspNet.TelemetryCorrelation.dll">
+      <publishTime>07/02/2020 21:36:22</publishTime>
     </File>
     <File Include="bin/Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll">
       <publishTime>11/04/2021 17:43:03</publishTime>
@@ -192,10 +201,10 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
       <publishTime>01/30/2022 12:43:50</publishTime>
     </File>
     <File Include="bin/MtxApi.dll">
-      <publishTime>04/19/2023 17:36:45</publishTime>
+      <publishTime>04/20/2023 08:59:25</publishTime>
     </File>
     <File Include="bin/MtxApi.pdb">
-      <publishTime>04/19/2023 17:36:45</publishTime>
+      <publishTime>04/20/2023 08:59:25</publishTime>
     </File>
     <File Include="bin/MySql.Data.dll">
       <publishTime>11/04/2021 17:43:03</publishTime>
@@ -885,7 +894,7 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
       <publishTime>11/04/2021 17:43:03</publishTime>
     </File>
     <File Include="Web.config">
-      <publishTime>02/22/2023 15:37:27</publishTime>
+      <publishTime>04/20/2023 09:04:57</publishTime>
     </File>
   </ItemGroup>
 </Project>
